@@ -135,6 +135,19 @@ td.num,th.num{text-align:right;font-family:'Chakra Petch',sans-serif}
 .heat-col{display:flex;flex-direction:column;gap:3px}
 .heat-c{width:13px;height:13px;border-radius:2px;background:var(--line)}
 
+.logbtn{font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:.12em;
+  text-transform:uppercase;font-weight:700;background:var(--gold);color:var(--ink);
+  padding:8px 14px;border-radius:4px;white-space:nowrap}
+.logbtn:hover{filter:brightness(1.1)}
+.hero{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:26px 24px;text-align:center}
+.hero h2{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:clamp(24px,5vw,34px);
+  margin:0 0 10px;letter-spacing:.02em}
+.hero p{color:var(--muted);margin:0 auto 16px;max-width:46ch;font-size:15px}
+.hero .logbtn{display:inline-block;font-size:14px;padding:11px 22px}
+.rulecard{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-top:8px;text-align:left}
+.rulecard div{background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:13px 15px}
+.rulecard b{font-family:'Chakra Petch',sans-serif;display:block;font-size:19px;color:var(--gold);margin-bottom:3px}
+.rulecard span{font-size:13px;color:var(--muted);line-height:1.4}
 .daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;
   background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:10px}
 .navbtn{font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:700;color:var(--text);
@@ -207,6 +220,7 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);
     <a href="#/levels" id="nav-levels">Levels</a>
     <a href="#/records" id="nav-records">Records</a>
   </nav>
+  <a class="logbtn hide" id="logBtn" target="_blank" rel="noopener">+ Log steps</a>
 </div></div>
 
 <div class="wrap">
@@ -225,6 +239,9 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);
    ============================================================ */
 const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQEs78cdP2Sl2PjqiXzGtSzxvH95nJvC1MVtc6fCW7XPeUdDNBqN43Pdfc9DIO7H26zYIDvd24P5N/pub?gid=860804357&single=true&output=csv";
 
+/* Optional: paste your Google Form link here to put a "Log steps" button on the site */
+const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe_1MWfMORmTVJb0S6BVHWMBEG8WEzTReL6dcyeg0wpAE3A-w/viewform?usp=dialog";
+
 /* ---------------- tune the game here ---------------- */
 const FLOOR       = 5000;   // compulsory daily minimum
 const BASE_POINTS = 10;     // for clearing the floor
@@ -233,6 +250,7 @@ const BONUS_CAP   = 10;     // max extra points per day (so 20/day ceiling)
 const BEAST_AT    = 20000;  // "Beast Mode" threshold
 const CENTURY     = 100000; // cumulative steps per Century bonus
 const GRACE_DAYS  = 3;      // no record bonuses for the first N days of the challenge
+const ON_DUPLICATE= "last"; // two entries for the same person + day: "last" wins, or "sum" them
 const STRIDE_M    = 0.75;
 const REFRESH_MS  = 5 * 60 * 1000;
 
@@ -394,7 +412,11 @@ function buildEngine(records){
   const dates=[...new Set(records.map(r=>r.date))].sort();
   const names=[...new Set(records.map(r=>r.name))].sort();
   const grid={}; names.forEach(n=>grid[n]={});
-  records.forEach(r=>{ grid[r.name][r.date]=(grid[r.name][r.date]||0)+r.steps; });
+  records.forEach(r=>{
+    grid[r.name][r.date] = ON_DUPLICATE==="sum"
+      ? (grid[r.name][r.date]||0)+r.steps   // add both entries together
+      : r.steps;                            // later row overwrites earlier: a correction
+  });
 
   const P={};
   names.forEach(n=>P[n]={
@@ -518,6 +540,18 @@ function streakDots(name,dates){
 
 function viewHome(){
   const b=E.board, dates=E.dates;
+  if(!b.length) return `
+    <div class="hero">
+      <h2>Nobody has logged a step yet</h2>
+      <p>The board fills in the moment the first entry lands. Log a day and you will appear here instantly.</p>
+      ${FORM_URL?`<a class="logbtn" href="${FORM_URL}" target="_blank" rel="noopener">+ Log your steps</a>`:""}
+      <div class="rulecard">
+        <div><b>5,000</b><span>Clear the floor and the day scores 10 points.</span></div>
+        <div><b>+1 / 1,000</b><span>Every extra thousand adds a point, capped at +10. Twenty is the most a day can pay.</span></div>
+        <div><b>14 quests</b><span>Streaks, records, comebacks and team bonuses stack on top. <a href="#/quests" style="color:var(--cyan)">See them all</a></span></div>
+        <div><b>8 levels</b><span>Rookie through Legend, earned on total points. <a href="#/levels" style="color:var(--cyan)">See the ladder</a></span></div>
+      </div>
+    </div>`;
   const totalSteps=b.reduce((s,e)=>s+e.steps,0);
   const totalDays=b.reduce((s,e)=>s+e.logged,0);
   const totalQual=b.reduce((s,e)=>s+e.qualified,0);
@@ -593,6 +627,10 @@ function viewQuests(){
 
 function viewRecords(){
   const b=E.board;
+  if(!b.length) return `<div class="hd">Hall of records</div>
+    <div class="hero"><h2>No records set yet</h2>
+    <p>Best single days, longest streaks and category leaders all appear here once people start logging.</p>
+    ${FORM_URL?`<a class="logbtn" href="${FORM_URL}" target="_blank" rel="noopener">+ Log your steps</a>`:""}</div>`;
   const bestDays=[];
   E.names.forEach(n=>Object.entries(E.grid[n]).forEach(([d,v])=>bestDays.push({n,d,v})));
   bestDays.sort((a,b)=>b.v-a.v);
@@ -749,7 +787,7 @@ function viewLevels(){
           <span class="lvreq">${nf(l.at)}${next?` &ndash; ${nf(next.at-1)}`:"+"} PTS</span>
         </div>
         ${chips?`<div class="chips">${chips}</div>`
-          :`<div class="empty-l">${closest?`Nobody here yet &mdash; ${esc(closest.name)} is closest, ${nf(l.at-closest.points)} points short.`:"Nobody here yet."}</div>`}
+          :`<div class="empty-l">${closest?`Nobody here yet &mdash; ${esc(closest.name)} is closest, ${nf(l.at-closest.points)} points short.`:(i===0?"Everyone starts here.":"Nobody here yet.")}</div>`}
       </div></div>`;
   }).reverse().join("");
 
@@ -775,6 +813,10 @@ function viewLevels(){
 
 function viewDaily(dateArg){
   const dates=E.dates;
+  if(!dates.length) return `<div class="hd">Daily board</div>
+    <div class="hero"><h2>No days logged yet</h2>
+    <p>Once entries start coming in, this page shows exactly how every person earned their points on any given day.</p>
+    ${FORM_URL?`<a class="logbtn" href="${FORM_URL}" target="_blank" rel="noopener">+ Log your steps</a>`:""}</div>`;
   const date=dates.includes(dateArg)?dateArg:dates[dates.length-1];
   const i=dates.indexOf(date), prev=dates[i-1], next=dates[i+1];
   const st=E.dayStat[date];
@@ -879,8 +921,9 @@ async function load(){
     }
   }
   const recs=toRecords(text);
-  if(!recs.length){ $("state").innerHTML=`<div class="notice">No entries found yet.</div>`; return; }
   E=buildEngine(recs);
+  const lb=$("logBtn");
+  if(FORM_URL){ lb.href=FORM_URL; lb.classList.remove("hide"); }
   route();
   $("state").innerHTML = demo
     ? `<div class="notice">Running on sample players. Open this file, find <code>const CSV_URL = ""</code> near the top of the script, and paste your published Google Sheet CSV link between the quotes.</div>` : "";
