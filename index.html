@@ -1,0 +1,893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>STEPQUEST</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E0B1F; --panel:#171232; --panel2:#1E1840; --line:#2E2657;
+  --gold:#FFC24B; --cyan:#45E0C8; --rose:#FF5C7A; --violet:#A78BFA;
+  --text:#EDEAFB; --muted:#8B84B8;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--ink);
+  background-image:
+    radial-gradient(120% 70% at 50% -10%, #241C4E 0%, transparent 60%),
+    linear-gradient(transparent 96%, rgba(167,139,250,.05) 96%),
+    linear-gradient(90deg, transparent 96%, rgba(167,139,250,.05) 96%);
+  background-size:auto, 34px 34px, 34px 34px;
+  color:var(--text);font-family:'Barlow',system-ui,sans-serif;font-size:16px;line-height:1.5;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1000px;margin:0 auto;padding:0 18px 70px}
+a{color:inherit;text-decoration:none}
+.mono{font-family:'Chakra Petch',monospace}
+
+/* nav */
+.topbar{position:sticky;top:0;z-index:20;background:rgba(14,11,31,.93);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line);margin-bottom:22px}
+.topbar-in{max-width:1000px;margin:0 auto;padding:12px 18px;display:flex;align-items:center;
+  justify-content:space-between;gap:14px;flex-wrap:wrap}
+.brand{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:21px;letter-spacing:.16em}
+.brand b{color:var(--gold)}
+.nav{display:flex;gap:4px}
+.nav a{font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:.14em;text-transform:uppercase;
+  padding:7px 12px;border:1px solid transparent;color:var(--muted);border-radius:3px;transition:.15s}
+.nav a:hover{color:var(--text);background:var(--panel)}
+.nav a.on{color:var(--ink);background:var(--gold);font-weight:600}
+.nav a:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+
+/* generic */
+.hd{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:13px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--muted);margin:30px 0 12px;display:flex;
+  align-items:center;gap:10px}
+.hd::after{content:"";flex:1;height:1px;background:var(--line)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:6px}
+.pts{font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--gold)}
+.back{font-family:'Chakra Petch',sans-serif;font-size:12px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--muted);display:inline-block;margin:4px 0 14px}
+.back:hover{color:var(--cyan)}
+
+/* stat grid */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:10px;margin-bottom:8px}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:13px 15px}
+.stat-k{font-family:'Chakra Petch',sans-serif;font-size:10px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.stat-v{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:26px;line-height:1}
+.stat-v small{font-size:.46em;color:var(--muted);margin-left:3px;letter-spacing:.08em}
+.stat-sub{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* leaderboard rows */
+.row{display:grid;grid-template-columns:38px 1fr auto;gap:13px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;
+  padding:13px 15px;margin-bottom:8px;transition:.15s;cursor:pointer}
+.row:hover{border-color:var(--violet);background:var(--panel2);transform:translateX(2px)}
+.row:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.row.r1{border-color:rgba(255,194,75,.5)}
+.rank{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:22px;color:var(--muted);text-align:center}
+.row.r1 .rank{color:var(--gold)}
+.row.r2 .rank,.row.r3 .rank{color:var(--violet)}
+.pname{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:19px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.lvl{font-family:'Chakra Petch',sans-serif;font-size:9px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--cyan);border:1px solid rgba(69,224,200,.4);padding:2px 6px;border-radius:3px}
+.rowmeta{font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:.1em;color:var(--muted);
+  margin-top:5px;display:flex;gap:12px;flex-wrap:wrap}
+.rowmeta b{color:var(--text);font-weight:600}
+.score{text-align:right}
+.score .n{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:29px;color:var(--gold);line-height:1}
+.score .l{font-family:'Chakra Petch',sans-serif;font-size:9px;letter-spacing:.2em;color:var(--muted)}
+.xp{height:4px;background:var(--ink);border-radius:2px;overflow:hidden;margin-top:9px}
+.xp i{display:block;height:100%;background:linear-gradient(90deg,var(--violet),var(--gold));width:0;
+  transition:width .9s cubic-bezier(.2,.8,.25,1)}
+
+/* streak dots */
+.dots{display:inline-flex;gap:3px;align-items:center}
+.dots i{width:8px;height:8px;border-radius:2px;background:var(--cyan);display:block}
+.dots i.miss{background:var(--rose)}
+.dots i.none{background:var(--line)}
+
+/* quests */
+.quests{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
+.quest{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:14px;
+  display:flex;flex-direction:column;gap:6px}
+.quest.got{border-color:rgba(69,224,200,.45);background:linear-gradient(180deg,rgba(69,224,200,.07),transparent)}
+.quest.locked{opacity:.5}
+.quest-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+.quest-n{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:15px}
+.quest-p{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:14px;color:var(--gold);white-space:nowrap}
+.quest-d{font-size:13.5px;color:var(--muted);line-height:1.38}
+.quest-c{font-family:'Chakra Petch',sans-serif;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--cyan)}
+.quest.locked .quest-c{color:var(--muted)}
+.cat{display:inline-block;font-family:'Chakra Petch',sans-serif;font-size:9px;letter-spacing:.16em;
+  text-transform:uppercase;color:var(--violet);border:1px solid rgba(167,139,250,.35);
+  padding:1px 6px;border-radius:3px}
+
+/* tables */
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-family:'Chakra Petch',sans-serif;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);text-align:left;padding:9px 10px;border-bottom:1px solid var(--line);font-weight:600}
+td{padding:10px;border-bottom:1px solid var(--line)}
+tr:last-child td{border-bottom:0}
+td.num,th.num{text-align:right;font-family:'Chakra Petch',sans-serif}
+.tag{display:inline-block;font-family:'Chakra Petch',sans-serif;font-size:9.5px;letter-spacing:.1em;
+  text-transform:uppercase;padding:2px 6px;border-radius:3px;margin:1px 3px 1px 0;
+  background:rgba(255,194,75,.14);color:var(--gold);border:1px solid rgba(255,194,75,.3)}
+.miss-t{color:var(--rose)}
+
+/* bar chart */
+.chart{display:flex;align-items:flex-end;gap:3px;height:110px;padding:10px 12px;position:relative}
+.chart .bar{flex:1;background:var(--violet);border-radius:2px 2px 0 0;min-height:2px;position:relative}
+.chart .bar.ok{background:linear-gradient(180deg,var(--cyan),rgba(69,224,200,.35))}
+.chart .bar.no{background:rgba(255,92,122,.55)}
+.floorline{position:absolute;left:12px;right:12px;border-top:1px dashed rgba(255,194,75,.5)}
+.floorlbl{position:absolute;right:14px;font-family:'Chakra Petch',sans-serif;font-size:9px;
+  letter-spacing:.12em;color:var(--gold);transform:translateY(-13px)}
+
+/* heatmap */
+.heat{display:flex;gap:3px;overflow-x:auto;padding:12px}
+.heat-col{display:flex;flex-direction:column;gap:3px}
+.heat-c{width:13px;height:13px;border-radius:2px;background:var(--line)}
+
+.daynav{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:10px 12px;margin-bottom:10px}
+.navbtn{font-family:'Chakra Petch',sans-serif;font-size:16px;font-weight:700;color:var(--text);
+  background:var(--panel2);border:1px solid var(--line);border-radius:4px;padding:6px 13px;cursor:pointer}
+.navbtn:hover:not(:disabled){border-color:var(--violet);color:var(--gold)}
+.navbtn:disabled{opacity:.3;cursor:default}
+.navbtn:focus-visible{outline:2px solid var(--cyan);outline-offset:2px}
+.daysel{font-family:'Chakra Petch',sans-serif;font-size:14px;font-weight:700;color:var(--text);
+  background:transparent;border:0;text-align:center;cursor:pointer;letter-spacing:.04em}
+.daysel option{background:var(--panel);color:var(--text)}
+.drow{display:grid;grid-template-columns:34px 1fr auto;gap:12px;align-items:center;
+  background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:12px 14px;margin-bottom:7px}
+.drow.top{border-color:rgba(255,194,75,.45)}
+.drow.out{opacity:.5}
+.dsteps{font-family:'Chakra Petch',sans-serif;font-size:12.5px;letter-spacing:.06em;color:var(--muted);margin-top:4px}
+.dsteps b{color:var(--text)}
+.dsteps .up{color:var(--cyan)} .dsteps .dn{color:var(--rose)}
+.dtags{margin-top:6px}
+.dtot{text-align:right;font-family:'Chakra Petch',sans-serif}
+.dtot .n{font-weight:700;font-size:23px;color:var(--gold);line-height:1}
+.dtot .l{font-size:9px;letter-spacing:.18em;color:var(--muted)}
+.dbanner{background:linear-gradient(90deg,rgba(69,224,200,.14),transparent);
+  border:1px solid rgba(69,224,200,.4);border-radius:6px;padding:11px 14px;margin-bottom:10px;
+  font-family:'Chakra Petch',sans-serif;font-size:13px;letter-spacing:.06em;color:var(--cyan)}
+.ladder{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:2px 16px}
+.lvrow{display:grid;grid-template-columns:24px 1fr;gap:14px;padding:15px 0;
+  border-bottom:1px solid var(--line);position:relative}
+.lvrow:last-child{border-bottom:0}
+.lvrow::before{content:"";position:absolute;left:11px;top:0;bottom:0;width:2px;background:var(--line)}
+.lvrow:first-child::before{top:50%}
+.lvrow:last-child::before{bottom:50%}
+.lvnode{width:14px;height:14px;border-radius:50%;border:2px solid var(--line);
+  background:var(--ink);margin-top:4px;position:relative;z-index:1}
+.lvrow.here .lvnode{border-color:var(--gold);background:var(--gold);box-shadow:0 0 0 4px rgba(255,194,75,.16)}
+.lvrow.done .lvnode{border-color:var(--cyan);background:var(--cyan)}
+.lvhead{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.lvname{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:18px}
+.lvrow.here .lvname{color:var(--gold)}
+.lvreq{font-family:'Chakra Petch',sans-serif;font-size:11px;letter-spacing:.14em;color:var(--muted)}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px}
+.chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);
+  border:1px solid var(--line);border-radius:20px;padding:4px 11px;
+  font-family:'Chakra Petch',sans-serif;font-size:12.5px;font-weight:600}
+.chip b{color:var(--gold);font-weight:700}
+.chip:hover{border-color:var(--violet)}
+.empty-l{font-size:12.5px;color:var(--muted);margin-top:7px;font-style:italic}
+.notice{border:1px dashed var(--line);border-radius:6px;padding:22px;text-align:center;
+  color:var(--muted);font-size:14px;margin:22px 0}
+.notice code{color:var(--gold);font-family:'Chakra Petch',monospace}
+footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);
+  font-family:'Chakra Petch',sans-serif;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--muted);display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hide{display:none}
+@media (max-width:560px){
+  .row{grid-template-columns:30px 1fr auto;gap:9px;padding:11px}
+  .pname{font-size:17px}.score .n{font-size:24px}
+  table{font-size:13px} td,th{padding:8px 6px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+
+<div class="topbar"><div class="topbar-in">
+  <div class="brand">STEP<b>QUEST</b></div>
+  <nav class="nav">
+    <a href="#/" id="nav-home">Overall</a>
+    <a href="#/daily" id="nav-daily">Daily</a>
+    <a href="#/quests" id="nav-quests">Quests</a>
+    <a href="#/levels" id="nav-levels">Levels</a>
+    <a href="#/records" id="nav-records">Records</a>
+  </nav>
+</div></div>
+
+<div class="wrap">
+  <div id="view"></div>
+  <div id="state"></div>
+  <footer>
+    <span>Floor 5,000 &middot; max 20 base pts/day &middot; 0.75 m stride</span>
+    <span id="stamp">&mdash;</span>
+  </footer>
+</div>
+
+<script>
+/* ============================================================
+   PASTE YOUR PUBLISHED GOOGLE SHEET CSV LINK BETWEEN THE QUOTES
+   Sheet columns:  Date | Name | Steps       Dates: YYYY-MM-DD
+   ============================================================ */
+const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQEs78cdP2Sl2PjqiXzGtSzxvH95nJvC1MVtc6fCW7XPeUdDNBqN43Pdfc9DIO7H26zYIDvd24P5N/pub?gid=860804357&single=true&output=csv";
+
+/* ---------------- tune the game here ---------------- */
+const FLOOR       = 5000;   // compulsory daily minimum
+const BASE_POINTS = 10;     // for clearing the floor
+const BONUS_STEP  = 1000;   // steps per extra point
+const BONUS_CAP   = 10;     // max extra points per day (so 20/day ceiling)
+const BEAST_AT    = 20000;  // "Beast Mode" threshold
+const CENTURY     = 100000; // cumulative steps per Century bonus
+const GRACE_DAYS  = 3;      // no record bonuses for the first N days of the challenge
+const STRIDE_M    = 0.75;
+const REFRESH_MS  = 5 * 60 * 1000;
+
+const STREAK_TIERS = [
+  {len:3,  pts:5,  key:"spark",     name:"Spark"},
+  {len:7,  pts:10, key:"locked",    name:"Week Locked"},
+  {len:15, pts:25, key:"fortnight", name:"Fortnight"},
+  {len:30, pts:60, key:"iron",      name:"Iron Month"}
+];
+const RELENTLESS_EVERY = 10, RELENTLESS_PTS = 30;
+
+const QUESTS = {
+  spark:     {name:"Spark",         pts:"+5",  cat:"Consistency", d:"Clear the floor 3 days running."},
+  locked:    {name:"Week Locked",   pts:"+10", cat:"Consistency", d:"Seven straight qualified days."},
+  fortnight: {name:"Fortnight",     pts:"+25", cat:"Consistency", d:"Fifteen straight qualified days."},
+  iron:      {name:"Iron Month",    pts:"+60", cat:"Consistency", d:"Thirty straight qualified days. The big one."},
+  relentless:{name:"Relentless",    pts:"+30", cat:"Consistency", d:"Every 10 further days once you pass 30. Repeats forever."},
+  comeback:  {name:"Comeback",      pts:"+3",  cat:"Consistency", d:"Clear the floor the day right after missing it. One bad day stays one bad day."},
+  weekend:   {name:"Weekend Warrior",pts:"+5", cat:"Consistency", d:"Clear both Saturday and Sunday of the same weekend."},
+  pb:        {name:"Personal Best",  pts:"+5", cat:"Records",     d:"Beat your own highest single day."},
+  crown:     {name:"Crown Steal",   pts:"+15", cat:"Records",     d:"Beat the highest single day anyone in the group has ever logged."},
+  beast:     {name:"Beast Mode",    pts:"+10", cat:"Records",     d:"Twenty thousand steps in one day. Flat bonus, sits outside the cap."},
+  daywin:    {name:"Day Win",        pts:"+3", cat:"Records",     d:"Log the most steps in the group on a given day."},
+  century:   {name:"Century Club",  pts:"+20", cat:"Milestone",   d:"Every 100,000 steps you accumulate. Always one on the horizon."},
+  fullhouse: {name:"Full House",     pts:"+5", cat:"Milestone",   d:"Every single person clears the floor on the same day. Everyone scores it together."},
+  improved:  {name:"Most Improved", pts:"+10", cat:"Milestone",   d:"Biggest week-on-week jump in steps. Weighted to whoever is climbing fastest, not whoever is highest."}
+};
+
+const LEVELS = [
+  {at:0,n:"Rookie"},{at:60,n:"Walker"},{at:150,n:"Strider"},{at:280,n:"Pacer"},
+  {at:450,n:"Roadrunner"},{at:680,n:"Machine"},{at:960,n:"Relentless"},{at:1300,n:"Legend"}
+];
+function levelOf(p){ let L=LEVELS[0],i=0,idx=0;
+  LEVELS.forEach((l,j)=>{ if(p>=l.at){L=l;idx=j;} });
+  const next=LEVELS[idx+1]||null;
+  return {name:L.n,idx:idx+1,next,pct:next?Math.min(100,((p-L.at)/(next.at-L.at))*100):100};
+}
+
+const DEMO = `Date,Name,Steps
+2026-07-27,Aisha,7200
+2026-07-27,Rohan,5400
+2026-07-27,Meera,11800
+2026-07-27,Zaid,3200
+2026-07-27,Kabir,5100
+2026-07-28,Aisha,6100
+2026-07-28,Rohan,9050
+2026-07-28,Meera,14300
+2026-07-28,Zaid,5100
+2026-07-28,Kabir,5600
+2026-07-29,Aisha,8400
+2026-07-29,Rohan,5200
+2026-07-29,Meera,21050
+2026-07-29,Zaid,5900
+2026-07-29,Kabir,6200
+2026-07-30,Aisha,5600
+2026-07-30,Rohan,6900
+2026-07-30,Meera,9800
+2026-07-30,Zaid,6600
+2026-07-30,Kabir,4400
+2026-07-31,Aisha,12600
+2026-07-31,Rohan,7200
+2026-07-31,Meera,10400
+2026-07-31,Zaid,5300
+2026-07-31,Kabir,5900
+2026-08-01,Aisha,9200
+2026-08-01,Rohan,5100
+2026-08-01,Meera,13900
+2026-08-01,Zaid,7100
+2026-08-01,Kabir,6800
+2026-08-02,Aisha,7900
+2026-08-02,Rohan,8600
+2026-08-02,Meera,12200
+2026-08-02,Zaid,5400
+2026-08-02,Kabir,5200
+2026-08-03,Aisha,10300
+2026-08-03,Rohan,4200
+2026-08-03,Meera,15600
+2026-08-03,Zaid,6200
+2026-08-03,Kabir,7400
+2026-08-04,Aisha,6700
+2026-08-04,Rohan,7800
+2026-08-04,Meera,11100
+2026-08-04,Zaid,5800
+2026-08-04,Kabir,3900
+2026-08-05,Aisha,14200
+2026-08-05,Rohan,6300
+2026-08-05,Meera,9400
+2026-08-05,Zaid,7900
+2026-08-05,Kabir,6100
+2026-08-06,Aisha,8800
+2026-08-06,Rohan,5900
+2026-08-06,Meera,22400
+2026-08-06,Zaid,6400
+2026-08-06,Kabir,8200
+2026-08-07,Aisha,7400
+2026-08-07,Rohan,9200
+2026-08-07,Meera,10800
+2026-08-07,Zaid,5100
+2026-08-07,Kabir,5500
+2026-08-08,Aisha,11600
+2026-08-08,Rohan,6100
+2026-08-08,Meera,13200
+2026-08-08,Zaid,8300
+2026-08-08,Kabir,9100
+2026-08-09,Aisha,9900
+2026-08-09,Rohan,7700
+2026-08-09,Meera,11500
+2026-08-09,Zaid,6900
+2026-08-09,Kabir,7200
+2026-08-10,Aisha,13100
+2026-08-10,Rohan,10400
+2026-08-10,Meera,12900
+2026-08-10,Zaid,9600
+2026-08-10,Kabir,11300`;
+
+/* ---------------- helpers ---------------- */
+const $ = id => document.getElementById(id);
+const nf = n => Number(n).toLocaleString("en-IN");
+const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const km = st => (st*STRIDE_M/1000).toFixed(1);
+const dow = d => new Date(d+"T00:00:00").getDay();   // 0 Sun .. 6 Sat
+const pretty = d => new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"});
+function addDays(d,n){ const x=new Date(d+"T00:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
+function weekKey(d){ const x=new Date(d+"T00:00:00"); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.toISOString().slice(0,10); }
+
+function parseCSV(text){
+  const rows=[]; let row=[],cell="",q=false;
+  text=text.replace(/^\uFEFF/,"").replace(/\r/g,"");
+  for(let i=0;i<text.length;i++){
+    const c=text[i];
+    if(q){ if(c==='"'&&text[i+1]==='"'){cell+='"';i++;} else if(c==='"'){q=false;} else cell+=c; }
+    else if(c==='"'){q=true;}
+    else if(c===","){row.push(cell);cell="";}
+    else if(c==="\n"){row.push(cell);rows.push(row);row=[];cell="";}
+    else cell+=c;
+  }
+  row.push(cell); if(row.length>1||row[0]!=="") rows.push(row);
+  return rows;
+}
+function toRecords(text){
+  const rows=parseCSV(text).filter(r=>r.some(c=>c.trim()!==""));
+  if(!rows.length) return [];
+  const h=rows[0].map(x=>x.trim().toLowerCase());
+  const di=h.findIndex(x=>x.startsWith("date")), ni=h.findIndex(x=>x.startsWith("name"));
+  const si=h.findIndex(x=>x.startsWith("step")||x.startsWith("count"));
+  const out=[];
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i], date=(r[di]||"").trim(), name=(r[ni]||"").trim();
+    const steps=parseInt(String(r[si]||"").replace(/[^0-9-]/g,""),10);
+    if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    out.push({date,name,steps:isNaN(steps)?0:Math.max(0,steps)});
+  }
+  return out;
+}
+function dayPoints(s){ return s<FLOOR ? 0 : BASE_POINTS + Math.min(BONUS_CAP, Math.floor((s-FLOOR)/BONUS_STEP)); }
+
+/* ---------------- the scoring engine ---------------- */
+function buildEngine(records){
+  const dates=[...new Set(records.map(r=>r.date))].sort();
+  const names=[...new Set(records.map(r=>r.name))].sort();
+  const grid={}; names.forEach(n=>grid[n]={});
+  records.forEach(r=>{ grid[r.name][r.date]=(grid[r.name][r.date]||0)+r.steps; });
+
+  const P={};
+  names.forEach(n=>P[n]={
+    name:n, points:0, base:0, bonusPts:0, steps:0, logged:0, qualified:0, missed:0,
+    run:0, bestRun:0, pb:0, pbDate:null, cum:0, centuries:0,
+    days:{}, events:[], badges:{}, firstDate:null
+  });
+
+  let record={steps:0,holder:null,date:null};
+  const timeline=[], dayStat={};
+
+  const award=(p,date,key,pts,note)=>{
+    p.points+=pts; p.bonusPts+=pts;
+    p.badges[key]=(p.badges[key]||0)+1;
+    const ev={date,key,pts,note:note||"",name:p.name};
+    p.events.push(ev); timeline.push(ev);
+    if(p.days[date]) p.days[date].bonuses.push(ev);
+  };
+
+  dates.forEach((date,di)=>{
+    const active=names.filter(n=>grid[n][date]!==undefined);
+    const vals=active.map(n=>grid[n][date]);
+    const dayMax=vals.length?Math.max(...vals):0;
+    // roster = everyone who has entered the challenge by this date
+    const roster=names.filter(n=>P[n].firstDate!==null||grid[n][date]!==undefined);
+    const clearedToday=roster.filter(n=>(grid[n][date]||0)>=FLOOR);
+    const fullHouse=roster.length>1 && clearedToday.length===roster.length;
+    dayStat[date]={max:dayMax,active:active.length,cleared:clearedToday.length,roster:roster.length,fullHouse};
+
+    active.forEach(n=>{
+      const p=P[n], v=grid[n][date];
+      if(p.firstDate===null) p.firstDate=date;
+      const base=dayPoints(v);
+      p.days[date]={steps:v,base,bonuses:[]};
+      p.logged++; p.steps+=v; p.cum+=v; p.points+=base; p.base+=base;
+
+      if(base>0){
+        p.qualified++;
+        const wasBroken = p.run===0 && p.logged>1;
+        p.run++; p.bestRun=Math.max(p.bestRun,p.run);
+
+        // streak tiers
+        STREAK_TIERS.forEach(t=>{ if(p.run===t.len) award(p,date,t.key,t.pts,`${t.len}-day streak`); });
+        if(p.run>30 && (p.run-30)%RELENTLESS_EVERY===0) award(p,date,"relentless",RELENTLESS_PTS,`${p.run}-day streak`);
+
+        // comeback: qualified today, missed the previous logged day
+        if(wasBroken) award(p,date,"comeback",3,"back the very next day");
+
+        // weekend warrior (awarded on Sunday if Saturday also cleared)
+        if(dow(date)===0){ const sat=addDays(date,-1);
+          if((grid[n][sat]||0)>=FLOOR) award(p,date,"weekend",5,"Sat + Sun cleared"); }
+
+        // beast mode
+        if(v>=BEAST_AT) award(p,date,"beast",10,`${nf(v)} in one day`);
+
+        // day win
+        if(v===dayMax && active.length>1) award(p,date,"daywin",3,"top of the group today");
+
+        // records (after the grace window)
+        if(di>=GRACE_DAYS){
+          if(p.pb>0 && v>p.pb) award(p,date,"pb",5,`beat ${nf(p.pb)}`);
+          if(record.steps>0 && v>record.steps && record.holder!==n)
+            award(p,date,"crown",15,`took the crown off ${record.holder}`);
+        }
+
+        // century club
+        while(p.cum >= (p.centuries+1)*CENTURY){ p.centuries++; award(p,date,"century",20,`${nf(p.centuries*CENTURY)} total steps`); }
+
+        // full house (team)
+        if(fullHouse) award(p,date,"fullhouse",5,"everyone cleared today");
+      } else {
+        p.run=0; p.missed++;
+      }
+
+      if(v>p.pb){ p.pb=v; p.pbDate=date; }
+      if(v>record.steps){ record={steps:v,holder:n,date}; }
+    });
+  });
+
+  // most improved, week on week
+  const weeks=[...new Set(dates.map(weekKey))].sort();
+  const wt={}; names.forEach(n=>wt[n]={});
+  dates.forEach(d=>{ const w=weekKey(d); names.forEach(n=>{ if(grid[n][d]!==undefined) wt[n][w]=(wt[n][w]||0)+grid[n][d]; }); });
+  for(let i=1;i<weeks.length;i++){
+    const w=weeks[i], prev=weeks[i-1];
+    let winner=null, bestGain=0;
+    names.forEach(n=>{
+      const a=wt[n][prev]||0, b=wt[n][w]||0;
+      if(a>0 && b>a){ const gain=(b-a)/a; if(gain>bestGain){ bestGain=gain; winner=n; } }
+    });
+    if(winner){
+      const last=[...dates].filter(d=>weekKey(d)===w).pop();
+      award(P[winner],last,"improved",10,`+${Math.round(bestGain*100)}% on the week`);
+    }
+  }
+
+  const board=names.map(n=>{
+    const p=P[n];
+    return {...p,
+      rate: p.logged?Math.round(p.qualified/p.logged*100):0,
+      avg: p.logged?Math.round(p.steps/p.logged):0,
+      current: p.run,
+      questCount: Object.keys(p.badges).length,
+      badgeTotal: Object.values(p.badges).reduce((a,b)=>a+b,0)
+    };
+  }).sort((a,b)=>b.points-a.points||b.steps-a.steps||a.name.localeCompare(b.name));
+
+  return {board,dates,names,grid,record,dayStat,timeline,P};
+}
+
+/* ---------------- views ---------------- */
+let E=null;
+
+function streakDots(name,dates){
+  return `<span class="dots">`+dates.slice(-7).map(d=>{
+    const v=E.grid[name][d];
+    if(v===undefined) return `<i class="none"></i>`;
+    return `<i class="${v>=FLOOR?"":"miss"}"></i>`;
+  }).join("")+`</span>`;
+}
+
+function viewHome(){
+  const b=E.board, dates=E.dates;
+  const totalSteps=b.reduce((s,e)=>s+e.steps,0);
+  const totalDays=b.reduce((s,e)=>s+e.logged,0);
+  const totalQual=b.reduce((s,e)=>s+e.qualified,0);
+  const fullHouses=Object.values(E.dayStat).filter(d=>d.fullHouse).length;
+  const bestStreak=Math.max(0,...b.map(e=>e.bestRun));
+
+  const stats=[
+    ["Group distance", km(totalSteps), "KM", `${nf(totalSteps)} steps together`],
+    ["Floor cleared", (totalDays?Math.round(totalQual/totalDays*100):0), "%", `${totalQual} of ${totalDays} logged days`],
+    ["Group record", nf(E.record.steps), "", E.record.holder?`${E.record.holder}, ${pretty(E.record.date)}`:"—"],
+    ["Longest streak", bestStreak, "D", "days without a miss"],
+    ["Full house days", fullHouses, "", "everyone cleared together"]
+  ].map(([k,v,u,s])=>`<div class="stat"><div class="stat-k">${k}</div>
+      <div class="stat-v">${v}${u?`<small>${u}</small>`:""}</div><div class="stat-sub">${s}</div></div>`).join("");
+
+  const rows=b.map((e,i)=>{
+    const L=levelOf(e.points);
+    return `<div class="row ${i===0?"r1":i===1?"r2":i===2?"r3":""}" role="link" tabindex="0"
+        data-go="#/p/${encodeURIComponent(e.name)}">
+      <div class="rank">${i+1}</div>
+      <div>
+        <div class="pname">${esc(e.name)} <span class="lvl">Lv ${L.idx} ${L.name}</span></div>
+        <div class="rowmeta">
+          <span>Floor <b>${e.qualified}</b>/${e.logged}</span>
+          <span>Streak <b>${e.current}</b></span>
+          <span>Quests <b>${e.badgeTotal}</b></span>
+          <span>Steps <b>${nf(e.steps)}</b></span>
+          <span><b>${km(e.steps)}</b> km</span>
+          <span>${streakDots(e.name,dates)}</span>
+        </div>
+        <div class="xp"><i data-w="${L.pct.toFixed(0)}"></i></div>
+      </div>
+      <div class="score"><div class="n">${nf(e.points)}</div><div class="l">PTS</div></div>
+    </div>`;
+  }).join("");
+
+  const recent=[...E.timeline].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,10).map(ev=>
+    `<tr><td class="mono" style="color:var(--muted)">${pretty(ev.date)}</td>
+      <td><a href="#/p/${encodeURIComponent(ev.name)}" style="font-weight:600">${esc(ev.name)}</a></td>
+      <td><span class="tag">${QUESTS[ev.key].name}</span> <span style="color:var(--muted);font-size:13px">${esc(ev.note)}</span></td>
+      <td class="num pts">+${ev.pts}</td></tr>`).join("");
+
+  return `
+    <div class="hd">Standings &middot; ${dates[0]} to ${dates[dates.length-1]}</div>
+    ${rows}
+    <div class="hd">Group</div>
+    <div class="stats">${stats}</div>
+    <div class="hd">Latest quest unlocks</div>
+    <div class="panel" style="padding:4px 8px"><table><tbody>${recent||`<tr><td>Nothing yet.</td></tr>`}</tbody></table></div>`;
+}
+
+function viewQuests(){
+  const cats=["Consistency","Records","Milestone"];
+  const counts={}; Object.keys(QUESTS).forEach(k=>counts[k]=E.board.reduce((s,e)=>s+(e.badges[k]||0),0));
+  const blocks=cats.map(c=>{
+    const items=Object.entries(QUESTS).filter(([,q])=>q.cat===c).map(([k,q])=>{
+      const n=counts[k];
+      const who=E.board.filter(e=>e.badges[k]).map(e=>`${e.name}${e.badges[k]>1?" \u00d7"+e.badges[k]:""}`).join(", ");
+      return `<div class="quest ${n?"got":"locked"}">
+        <div class="quest-top"><span class="quest-n">${q.name}</span><span class="quest-p">${q.pts}</span></div>
+        <div class="quest-d">${q.d}</div>
+        <div class="quest-c">${n?`Claimed ${n}\u00d7 &middot; ${esc(who)}`:"Not yet claimed"}</div>
+      </div>`;
+    }).join("");
+    return `<div class="hd">${c}</div><div class="quests">${items}</div>`;
+  }).join("");
+  return `<div class="hd">How scoring works</div>
+    <div class="panel" style="padding:16px 18px">
+      <p style="margin:0 0 8px">Clear <b style="color:var(--cyan)">5,000 steps</b> and the day scores <b class="pts">10 points</b>. Every extra 1,000 adds <b class="pts">1 point</b>, capped at <b class="pts">+10</b> &mdash; so a day is worth at most <b class="pts">20</b> base points, and one huge Sunday cannot run away with the challenge.</p>
+      <p style="margin:0;color:var(--muted)">Below 5,000 scores nothing and resets your streak. Everything beyond that comes from quests, and quests stack &mdash; a single day can pay a streak tier, a personal best, a day win and a full house all at once.</p>
+    </div>${blocks}`;
+}
+
+function viewRecords(){
+  const b=E.board;
+  const bestDays=[];
+  E.names.forEach(n=>Object.entries(E.grid[n]).forEach(([d,v])=>bestDays.push({n,d,v})));
+  bestDays.sort((a,b)=>b.v-a.v);
+  const top=bestDays.slice(0,10).map((r,i)=>`<tr>
+    <td class="num" style="color:var(--muted);width:34px">${i+1}</td>
+    <td><a href="#/p/${encodeURIComponent(r.n)}" style="font-weight:600">${esc(r.n)}</a></td>
+    <td class="mono" style="color:var(--muted)">${pretty(r.d)}</td>
+    <td class="num" style="color:${i===0?"var(--gold)":"inherit"}">${nf(r.v)}</td>
+    <td class="num" style="color:var(--muted)">${km(r.v)} km</td></tr>`).join("");
+
+  const lead=(label,fn,fmt)=>{ const s=[...b].sort(fn)[0];
+    return `<div class="stat"><div class="stat-k">${label}</div>
+      <div class="stat-v" style="font-size:20px">${s?esc(s.name):"—"}</div>
+      <div class="stat-sub">${s?fmt(s):""}</div></div>`; };
+
+  const leaders=[
+    lead("Most steps",(x,y)=>y.steps-x.steps,s=>`${nf(s.steps)} steps`),
+    lead("Longest streak",(x,y)=>y.bestRun-x.bestRun,s=>`${s.bestRun} days`),
+    lead("Most reliable",(x,y)=>y.rate-x.rate||y.logged-x.logged,s=>`${s.rate}% of days cleared`),
+    lead("Most quests",(x,y)=>y.badgeTotal-x.badgeTotal,s=>`${s.badgeTotal} unlocks`),
+    lead("Highest average",(x,y)=>y.avg-x.avg,s=>`${nf(s.avg)} steps/day`),
+    lead("Most bonus points",(x,y)=>y.bonusPts-x.bonusPts,s=>`${nf(s.bonusPts)} from quests`)
+  ].join("");
+
+  const dayRows=[...E.dates].reverse().slice(0,14).map(d=>{
+    const s=E.dayStat[d];
+    return `<tr><td class="mono">${pretty(d)}</td>
+      <td class="num">${s.cleared}/${s.roster}</td>
+      <td class="num">${nf(s.max)}</td>
+      <td>${s.fullHouse?`<span class="tag">Full house</span>`:`<span style="color:var(--muted)">&mdash;</span>`}</td></tr>`;
+  }).join("");
+
+  return `<div class="hd">Hall of records</div>
+    <div class="panel" style="padding:4px 8px"><table>
+      <thead><tr><th class="num">#</th><th>Who</th><th>When</th><th class="num">Steps</th><th class="num">Distance</th></tr></thead>
+      <tbody>${top}</tbody></table></div>
+    <div class="hd">Category leaders</div>
+    <div class="stats">${leaders}</div>
+    <div class="hd">Day by day</div>
+    <div class="panel" style="padding:4px 8px"><table>
+      <thead><tr><th>Date</th><th class="num">Cleared</th><th class="num">Top steps</th><th>Team</th></tr></thead>
+      <tbody>${dayRows}</tbody></table></div>`;
+}
+
+function viewPlayer(name){
+  const e=E.board.find(x=>x.name===name);
+  if(!e) return `<a class="back" href="#/">&larr; Leaderboard</a><div class="notice">No player called ${esc(name)}.</div>`;
+  const rank=E.board.indexOf(e)+1;
+  const L=levelOf(e.points);
+  const mine=E.dates.filter(d=>e.days[d]);
+  const last=mine.slice(-30);
+  const max=Math.max(FLOOR*1.2,...last.map(d=>e.days[d].steps));
+
+  const bars=last.map(d=>{
+    const v=e.days[d].steps, h=(v/max)*100;
+    return `<div class="bar ${v>=FLOOR?"ok":"no"}" style="height:${h.toFixed(1)}%" title="${pretty(d)}: ${nf(v)}"></div>`;
+  }).join("");
+  const floorPct=100-(FLOOR/max*100);
+
+  const stats=[
+    ["Rank",`#${rank}`,"",`of ${E.board.length}`],
+    ["Points",nf(e.points),"",`${nf(e.base)} base + ${nf(e.bonusPts)} quests`],
+    ["Current streak",e.current,"D",`best ${e.bestRun}`],
+    ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} days`],
+    ["Personal best",nf(e.pb),"",e.pbDate?pretty(e.pbDate):"—"],
+    ["Total steps",nf(e.steps),"",`${nf(e.avg)} avg on logged days`],
+    ["Distance",km(e.steps),"KM",`out of ${nf(km(E.board.reduce((s,x)=>s+x.steps,0)))} km group total`]
+  ].map(([k,v,u,s])=>`<div class="stat"><div class="stat-k">${k}</div>
+    <div class="stat-v">${v}${u?`<small>${u}</small>`:""}</div><div class="stat-sub">${s}</div></div>`).join("");
+
+  const badges=Object.entries(QUESTS).map(([k,q])=>{
+    const c=e.badges[k]||0;
+    return `<div class="quest ${c?"got":"locked"}">
+      <div class="quest-top"><span class="quest-n">${q.name}</span><span class="quest-p">${q.pts}</span></div>
+      <div class="quest-d">${q.d}</div>
+      <div class="quest-c">${c?`Unlocked \u00d7${c} &middot; ${c*parseInt(q.pts.replace("+",""))} pts`:"Locked"}</div>
+    </div>`;
+  }).join("");
+
+  const log=[...mine].reverse().slice(0,30).map(d=>{
+    const x=e.days[d], bp=x.bonuses.reduce((s,b)=>s+b.pts,0);
+    return `<tr>
+      <td class="mono" style="color:var(--muted)">${pretty(d)}</td>
+      <td class="num ${x.steps<FLOOR?"miss-t":""}">${nf(x.steps)}</td>
+      <td class="num">${x.base}</td>
+      <td>${x.bonuses.map(b=>`<span class="tag" title="${esc(b.note)}">${QUESTS[b.key].name} +${b.pts}</span>`).join("")||`<span style="color:var(--muted)">&mdash;</span>`}</td>
+      <td class="num pts">${x.base+bp}</td></tr>`;
+  }).join("");
+
+  // heatmap: last 10 weeks, columns = weeks, rows = Mon..Sun
+  const end=E.dates[E.dates.length-1];
+  const cells=[]; let cur=weekKey(end);
+  for(let w=0;w<10;w++){
+    const col=[];
+    for(let dd=0;dd<7;dd++){
+      const d=addDays(cur,dd);
+      const v=e.days[d]?e.days[d].steps:null;
+      let bg="var(--line)", t=pretty(d)+": no entry";
+      if(v!==null){
+        if(v<FLOOR){ bg="rgba(255,92,122,.65)"; }
+        else { const k=Math.min(1,(v-FLOOR)/15000); bg=`rgba(69,224,200,${(0.3+k*0.7).toFixed(2)})`; }
+        t=pretty(d)+": "+nf(v);
+      }
+      col.push(`<div class="heat-c" style="background:${bg}" title="${t}"></div>`);
+    }
+    cells.unshift(`<div class="heat-col">${col.join("")}</div>`);
+    cur=addDays(cur,-7);
+  }
+
+  const others=E.board.filter(x=>x.name!==name).map(x=>
+    `<a href="#/p/${encodeURIComponent(x.name)}" class="lvl" style="color:var(--muted);border-color:var(--line)">${esc(x.name)}</a>`).join(" ");
+
+  return `<a class="back" href="#/">&larr; Leaderboard</a>
+    <div class="hd" style="margin-top:0">
+      <span style="font-size:26px;letter-spacing:.02em;color:var(--text)">${esc(e.name)}</span>
+      <span class="lvl">Lv ${L.idx} ${L.name}</span></div>
+    <div class="panel" style="padding:14px 16px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-family:'Chakra Petch';font-size:11px;letter-spacing:.14em;color:var(--muted)">
+        <span>${L.name}</span><span>${L.next?`${nf(L.next.at-e.points)} pts to ${L.next.n}`:"Max level"}</span></div>
+      <div class="xp" style="height:7px"><i data-w="${L.pct.toFixed(0)}"></i></div>
+    </div>
+    <div class="stats">${stats}</div>
+    <div class="hd">Last ${last.length} days</div>
+    <div class="panel" style="position:relative">
+      <div class="chart">${bars}<div class="floorline" style="bottom:${(FLOOR/max*100).toFixed(1)}%"></div>
+      <div class="floorlbl" style="bottom:${(FLOOR/max*100).toFixed(1)}%">FLOOR 5K</div></div>
+    </div>
+    <div class="hd">Attendance</div>
+    <div class="panel"><div class="heat">${cells.join("")}</div></div>
+    <div class="hd">Quests &middot; ${e.questCount} of ${Object.keys(QUESTS).length} discovered</div>
+    <div class="quests">${badges}</div>
+    <div class="hd">Daily log</div>
+    <div class="panel" style="padding:4px 8px"><table>
+      <thead><tr><th>Date</th><th class="num">Steps</th><th class="num">Base</th><th>Quests</th><th class="num">Total</th></tr></thead>
+      <tbody>${log}</tbody></table></div>
+    <div class="hd">Compare with</div>
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${others}</div>`;
+}
+
+function viewLevels(){
+  const rows=LEVELS.map((l,i)=>{
+    const next=LEVELS[i+1];
+    const here=E.board.filter(e=>{
+      const L=levelOf(e.points); return L.idx===i+1;
+    });
+    const anyAbove=E.board.some(e=>levelOf(e.points).idx>i+1);
+    const chips=here.map(e=>`<a class="chip" href="#/p/${encodeURIComponent(e.name)}">${esc(e.name)} <b>${nf(e.points)}</b></a>`).join("");
+    const closest=E.board.filter(e=>e.points<l.at).sort((a,b)=>b.points-a.points)[0];
+    return `<div class="lvrow ${here.length?"here":(anyAbove?"done":"")}">
+      <div class="lvnode"></div>
+      <div>
+        <div class="lvhead">
+          <span class="lvname">Lv ${i+1} &middot; ${l.n}</span>
+          <span class="lvreq">${nf(l.at)}${next?` &ndash; ${nf(next.at-1)}`:"+"} PTS</span>
+        </div>
+        ${chips?`<div class="chips">${chips}</div>`
+          :`<div class="empty-l">${closest?`Nobody here yet &mdash; ${esc(closest.name)} is closest, ${nf(l.at-closest.points)} points short.`:"Nobody here yet."}</div>`}
+      </div></div>`;
+  }).reverse().join("");
+
+  const perDay=BASE_POINTS+BONUS_CAP;
+  const pace=LEVELS.map((l,i)=>{
+    const next=LEVELS[i+1]; if(!next) return "";
+    return `<tr><td>Lv ${i+1} &rarr; Lv ${i+2}</td><td class="num">${nf(next.at-l.at)}</td>
+      <td class="num" style="color:var(--muted)">${Math.ceil((next.at-l.at)/10)}</td>
+      <td class="num" style="color:var(--muted)">${Math.ceil((next.at-l.at)/perDay)}</td></tr>`;
+  }).join("");
+
+  return `<div class="hd">The climb</div>
+    <div class="panel" style="padding:15px 17px;margin-bottom:14px">
+      <p style="margin:0;color:var(--muted)">Levels come from <b style="color:var(--gold)">total points</b>, nothing else &mdash; base points for clearing the floor plus everything you pull in from quests. They never go down. Clearing the floor at exactly 5,000 every day earns 10 points a day; a 15,000-step day earns 20.</p>
+    </div>
+    <div class="ladder">${rows}</div>
+    <div class="hd">What each jump costs</div>
+    <div class="panel" style="padding:4px 8px"><table>
+      <thead><tr><th>Jump</th><th class="num">Points</th><th class="num">Days at floor</th><th class="num">Days at max</th></tr></thead>
+      <tbody>${pace}</tbody></table></div>
+    <p style="color:var(--muted);font-size:13.5px;margin-top:12px">&ldquo;Days at floor&rdquo; assumes 5,000 steps daily and no quests. &ldquo;Days at max&rdquo; assumes 15,000 daily and no quests. Real pace sits between the two, and quests pull it in further.</p>`;
+}
+
+function viewDaily(dateArg){
+  const dates=E.dates;
+  const date=dates.includes(dateArg)?dateArg:dates[dates.length-1];
+  const i=dates.indexOf(date), prev=dates[i-1], next=dates[i+1];
+  const st=E.dayStat[date];
+
+  const rows=E.names.map(n=>{
+    const p=E.P[n], day=p.days[date];
+    if(!day) return {n,logged:false,steps:0,base:0,bonus:0,total:0,tags:""};
+    const bonus=day.bonuses.reduce((a,b)=>a+b.pts,0);
+    return {n,logged:true,steps:day.steps,base:day.base,bonus,total:day.base+bonus,
+      tags:day.bonuses.map(b=>`<span class="tag" title="${esc(b.note)}">${QUESTS[b.key].name} +${b.pts}</span>`).join("")};
+  }).sort((a,b)=>Number(b.logged)-Number(a.logged)||b.total-a.total||b.steps-a.steps);
+
+  const dayPts=rows.reduce((a,r)=>a+r.total,0);
+  const dayStepsTot=rows.reduce((a,r)=>a+r.steps,0);
+
+  const list=rows.map((r,idx)=>{
+    if(!r.logged) return `<div class="drow out">
+      <div class="rank">&ndash;</div>
+      <div><div class="pname" style="font-size:17px"><a href="#/p/${encodeURIComponent(r.n)}">${esc(r.n)}</a></div>
+      <div class="dsteps">Nothing logged for this day</div></div>
+      <div class="dtot"><div class="n" style="color:var(--muted)">0</div><div class="l">PTS</div></div></div>`;
+    const p=E.P[r.n];
+    const avg=p.logged?Math.round(p.steps/p.logged):0;
+    const diff=avg?Math.round((r.steps-avg)/avg*100):0;
+    const cmp=avg?`<span class="${diff>=0?"up":"dn"}">${diff>=0?"\u25b2":"\u25bc"} ${Math.abs(diff)}% vs their average</span>`:"";
+    return `<div class="drow ${idx===0?"top":""}">
+      <div class="rank">${idx+1}</div>
+      <div>
+        <div class="pname" style="font-size:17px"><a href="#/p/${encodeURIComponent(r.n)}">${esc(r.n)}</a>
+          ${r.steps===st.max?`<span class="lvl">Day win</span>`:""}
+          ${r.steps<FLOOR?`<span class="lvl" style="color:var(--rose);border-color:rgba(255,92,122,.4)">Below floor</span>`:""}</div>
+        <div class="dsteps"><b>${nf(r.steps)}</b> steps &middot; ${km(r.steps)} km &middot;
+          <b>${r.base}</b> base${r.bonus?` + <b>${r.bonus}</b> from quests`:""} &nbsp; ${cmp}</div>
+        ${r.tags?`<div class="dtags">${r.tags}</div>`:""}
+      </div>
+      <div class="dtot"><div class="n">${r.total}</div><div class="l">PTS</div></div></div>`;
+  }).join("");
+
+  const opts=[...dates].reverse().map(d=>
+    `<option value="${d}" ${d===date?"selected":""}>${new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}</option>`).join("");
+
+  const stats=[
+    ["Cleared the floor",`${st.cleared}/${st.roster}`,"",""],
+    ["Points awarded",nf(dayPts),"",""],
+    ["Steps that day",nf(dayStepsTot),"",`${km(dayStepsTot)} km`],
+    ["Top steps",nf(st.max),"",""]
+  ].map(([k,v,u,sub])=>`<div class="stat"><div class="stat-k">${k}</div>
+    <div class="stat-v">${v}</div>${sub?`<div class="stat-sub">${sub}</div>`:""}</div>`).join("");
+
+  return `<div class="hd" style="margin-top:22px">Daily board</div>
+    <div class="daynav">
+      <button class="navbtn" id="dayPrev" ${prev?`data-d="${prev}"`:"disabled"} aria-label="Previous day">&larr;</button>
+      <select class="daysel" id="daySel" aria-label="Pick a day">${opts}</select>
+      <button class="navbtn" id="dayNext" ${next?`data-d="${next}"`:"disabled"} aria-label="Next day">&rarr;</button>
+    </div>
+    ${st.fullHouse?`<div class="dbanner">FULL HOUSE &mdash; every single person cleared the floor. Everyone banked +5.</div>`:""}
+    <div class="stats" style="margin-bottom:14px">${stats}</div>
+    ${list}
+    <p style="color:var(--muted);font-size:13px;margin-top:14px">Ranked by points earned on this day alone. Quest tags show exactly what each person picked up &mdash; hover any tag for the detail.</p>`;
+}
+
+/* ---------------- routing ---------------- */
+function route(){
+  if(!E) return;
+  const h=location.hash||"#/";
+  let html;
+  if(h.startsWith("#/p/")) html=viewPlayer(decodeURIComponent(h.slice(4)));
+  else if(h.startsWith("#/daily")) html=viewDaily(h.slice(7).replace(/^\//,""));
+  else if(h==="#/quests") html=viewQuests();
+  else if(h==="#/levels") html=viewLevels();
+  else if(h==="#/records") html=viewRecords();
+  else html=viewHome();
+  $("view").innerHTML=html;
+  ["home","daily","quests","levels","records"].forEach(k=>{
+    const el=$("nav-"+k);
+    el.classList.toggle("on", (k==="home"&&(h==="#/"||h.startsWith("#/p/")))||(k==="daily"&&h.startsWith("#/daily"))||h==="#/"+k);
+  });
+  document.querySelectorAll("[data-go]").forEach(el=>{
+    const go=()=>location.hash=el.dataset.go;
+    el.addEventListener("click",go);
+    el.addEventListener("keydown",ev=>{ if(ev.key==="Enter"||ev.key===" "){ ev.preventDefault(); go(); } });
+  });
+  ["dayPrev","dayNext"].forEach(id=>{ const b=$(id);
+    if(b&&b.dataset.d) b.addEventListener("click",()=>location.hash="#/daily/"+b.dataset.d); });
+  const sel=$("daySel"); if(sel) sel.addEventListener("change",()=>location.hash="#/daily/"+sel.value);
+  requestAnimationFrame(()=>document.querySelectorAll(".xp i").forEach(i=>i.style.width=i.dataset.w+"%"));
+  window.scrollTo(0,0);
+}
+window.addEventListener("hashchange",route);
+
+/* ---------------- load ---------------- */
+async function load(){
+  let text=DEMO, demo=true;
+  if(CSV_URL){
+    try{
+      const res=await fetch(CSV_URL+(CSV_URL.includes("?")?"&":"?")+"t="+Date.now());
+      if(!res.ok) throw new Error(res.status);
+      text=await res.text(); demo=false;
+    }catch(err){
+      $("state").innerHTML=`<div class="notice">Could not reach the sheet. Check it is published to the web as CSV and the link ends in <code>output=csv</code>.</div>`;
+      return;
+    }
+  }
+  const recs=toRecords(text);
+  if(!recs.length){ $("state").innerHTML=`<div class="notice">No entries found yet.</div>`; return; }
+  E=buildEngine(recs);
+  route();
+  $("state").innerHTML = demo
+    ? `<div class="notice">Running on sample players. Open this file, find <code>const CSV_URL = ""</code> near the top of the script, and paste your published Google Sheet CSV link between the quotes.</div>` : "";
+  $("stamp").textContent="Synced "+new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"});
+}
+load();
+setInterval(load,REFRESH_MS);
+</script>
+</body>
+</html>
