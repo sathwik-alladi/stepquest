@@ -237,10 +237,10 @@ footer{margin-top:40px;padding-top:14px;border-top:1px solid var(--line);
    PASTE YOUR PUBLISHED GOOGLE SHEET CSV LINK BETWEEN THE QUOTES
    Sheet columns:  Date | Name | Steps       Dates: YYYY-MM-DD
    ============================================================ */
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQBQEs78cdP2Sl2PjqiXzGtSzxvH95nJvC1MVtc6fCW7XPeUdDNBqN43Pdfc9DIO7H26zYIDvd24P5N/pub?gid=860804357&single=true&output=csv";
+const CSV_URL = "";
 
 /* Optional: paste your Google Form link here to put a "Log steps" button on the site */
-const FORM_URL = "https://docs.google.com/forms/d/e/1FAIpQLSe_1MWfMORmTVJb0S6BVHWMBEG8WEzTReL6dcyeg0wpAE3A-w/viewform?usp=dialog";
+const FORM_URL = "";
 
 /* ---------------- tune the game here ---------------- */
 const FLOOR       = 5000;   // compulsory daily minimum
@@ -371,10 +371,10 @@ const $ = id => document.getElementById(id);
 const nf = n => Number(n).toLocaleString("en-IN");
 const esc = s => String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const km = st => (st*STRIDE_M/1000).toFixed(1);
-const dow = d => new Date(d+"T00:00:00").getDay();   // 0 Sun .. 6 Sat
+const dow = d => new Date(d+"T00:00:00Z").getUTCDay();   // 0 Sun .. 6 Sat (UTC-safe)
 const pretty = d => new Date(d+"T00:00:00").toLocaleDateString("en-IN",{day:"numeric",month:"short"});
-function addDays(d,n){ const x=new Date(d+"T00:00:00"); x.setDate(x.getDate()+n); return x.toISOString().slice(0,10); }
-function weekKey(d){ const x=new Date(d+"T00:00:00"); const day=(x.getDay()+6)%7; x.setDate(x.getDate()-day); return x.toISOString().slice(0,10); }
+function addDays(d,n){ const x=new Date(d+"T00:00:00Z"); x.setUTCDate(x.getUTCDate()+n); return x.toISOString().slice(0,10); }
+function weekKey(d){ const x=new Date(d+"T00:00:00Z"); const day=(x.getUTCDay()+6)%7; x.setUTCDate(x.getUTCDate()-day); return x.toISOString().slice(0,10); }
 
 function parseCSV(text){
   const rows=[]; let row=[],cell="",q=false;
