@@ -312,7 +312,7 @@ const DEMO = `Date,Name,Steps,Status
 2026-07-30,Rohan,6900,
 2026-07-30,Meera,9800,
 2026-07-30,Zaid,6600,
-2026-07-30,Kabir,0,Sick day
+2026-07-30,Kabir,2200,Sick day
 2026-07-31,Aisha,12600,
 2026-07-31,Rohan,7200,
 2026-07-31,Meera,10400,
@@ -427,7 +427,7 @@ function buildEngine(records){
   const P={};
   names.forEach(n=>P[n]={
     name:n, points:0, base:0, bonusPts:0, steps:0, logged:0, qualified:0, missed:0,
-    sickDays:0, sickRejected:0, pending:0,
+    sickDays:0, sickRejected:0, pending:0, entries:0,
     run:0, bestRun:0, pb:0, pbDate:null, cum:0, centuries:0,
     days:{}, events:[], badges:{}, firstDate:null
   });
@@ -477,22 +477,27 @@ function buildEngine(records){
       }
 
       // ---- excused day ----
-      if(cell.sick){
+      // Cleared the floor anyway? Then it is simply a normal day and no sick credit is spent.
+      if(cell.sick && cell.steps<FLOOR){
         if(p.sickDays<SICK_MAX){
           p.sickDays++; status[n][date]="sick";
           p.days[date]={steps:cell.steps,base:0,bonuses:[],sick:true};
+          // whatever they did manage still counts toward totals, distance and Century Club
+          p.steps+=cell.steps; p.cum+=cell.steps; p.entries++;
+          while(p.cum >= (p.centuries+1)*CENTURY){ p.centuries++; award(p,date,"century",20,`${nf(p.centuries*CENTURY)} total steps`); }
           return;                                    // streak survives untouched, no points
         }
         p.sickRejected++;                            // over the cap: treat as an ordinary miss
         status[n][date]="over-cap"; p.run=0; p.missed++;
         p.days[date]={steps:cell.steps,base:0,bonuses:[],sick:true,overCap:true};
+        p.steps+=cell.steps; p.cum+=cell.steps; p.entries++;
         return;
       }
 
       const v=cell.steps;
       const base=dayPoints(v);
       p.days[date]={steps:v,base,bonuses:[]};
-      p.logged++; p.steps+=v; p.cum+=v; p.points+=base; p.base+=base;
+      p.logged++; p.entries++; p.steps+=v; p.cum+=v; p.points+=base; p.base+=base;
 
       if(base>0){
         status[n][date]="ok";
@@ -551,7 +556,7 @@ function buildEngine(records){
     const p=P[n];
     return {...p,
       rate: p.logged?Math.round(p.qualified/p.logged*100):0,
-      avg: p.logged?Math.round(p.steps/p.logged):0,
+      avg: p.entries?Math.round(p.steps/p.entries):0,
       current: p.run,
       questCount: Object.keys(p.badges).length,
       sickDays: p.sickDays,
@@ -659,7 +664,7 @@ function viewQuests(){
   return `<div class="hd">How scoring works</div>
     <div class="panel" style="padding:16px 18px">
       <p style="margin:0 0 8px">Clear <b style="color:var(--cyan)">5,000 steps</b> and the day scores <b class="pts">10 points</b>. Every extra 1,000 adds <b class="pts">1 point</b>, capped at <b class="pts">+10</b> &mdash; so a day is worth at most <b class="pts">20</b> base points, and one huge Sunday cannot run away with the challenge.</p>
-      <p style="margin:0 0 8px;color:var(--muted)">A day you never log counts as a miss and breaks your streak, exactly like walking under the floor &mdash; but only once it is more than ${BACKFILL_DAYS} days old, since you can still backfill inside that window. Marking a day as <b style="color:var(--violet)">sick</b> on the form excuses it: no points, but your streak survives. You get ${SICK_MAX} of those for the whole challenge.</p>
+      <p style="margin:0 0 8px;color:var(--muted)">A day you never log counts as a miss and breaks your streak, exactly like walking under the floor &mdash; but only once it is more than ${BACKFILL_DAYS} days old, since you can still backfill inside that window. Marking a day as <b style="color:var(--violet)">sick</b> on the form excuses it: no points, but your streak survives. You get ${SICK_MAX} of those for the whole challenge, and any steps you did manage still count toward your total, your distance and Century Club. Clear 5,000 on a day you marked sick and it just scores as a normal day &mdash; the sick credit is not spent.</p>
       <p style="margin:0;color:var(--muted)">Below 5,000 scores nothing and resets your streak. Everything beyond that comes from quests, and quests stack &mdash; a single day can pay a streak tier, a personal best, a day win and a full house all at once.</p>
     </div>${blocks}`;
 }
@@ -733,7 +738,7 @@ function viewPlayer(name){
     ["Rank",`#${rank}`,"",`of ${E.board.length}`],
     ["Points",nf(e.points),"",`${nf(e.base)} base + ${nf(e.bonusPts)} quests`],
     ["Current streak",e.current,"D",`best ${e.bestRun}`],
-    ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} walked days`],
+    ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} counted days`],
     ["Sick days used",`${e.sickDays}/${SICK_MAX}`,"",e.sickDays?"streak protected":"none claimed"],
     ["Personal best",nf(e.pb),"",e.pbDate?pretty(e.pbDate):"—"],
     ["Total steps",nf(e.steps),"",`${nf(e.avg)} avg on logged days`],
@@ -757,7 +762,7 @@ function viewPlayer(name){
       <td class="num miss-t">not logged</td><td class="num">0</td>
       <td><span style="color:var(--rose)">streak broken</span></td><td class="num">0</td></tr>`;
     if(st==="sick") return `<tr><td class="mono" style="color:var(--muted)">${pretty(d)}</td>
-      <td class="num" style="color:var(--violet)">sick day</td><td class="num">0</td>
+      <td class="num" style="color:var(--violet)">${e.days[d]&&e.days[d].steps?nf(e.days[d].steps):"0"}</td><td class="num">0</td>
       <td><span class="tag" style="background:rgba(167,139,250,.15);color:var(--violet);border-color:rgba(167,139,250,.35)">Excused &middot; streak kept</span></td>
       <td class="num">0</td></tr>`;
     const x=e.days[d], bp=x.bonuses.reduce((s,b)=>s+b.pts,0);
@@ -890,7 +895,8 @@ function viewDaily(dateArg){
 
   const list=rows.map((r,idx)=>{
     if(!r.logged){
-      const msg={ sick:`<span style="color:var(--violet)">Sick day &mdash; excused, streak kept</span>`,
+      const sickSteps=E.P[r.n].days[date]?E.P[r.n].days[date].steps:0;
+      const msg={ sick:`<span style="color:var(--violet)">Sick day &mdash; excused, streak kept</span>${sickSteps?` &middot; <b>${nf(sickSteps)}</b> steps still counted`:""}`,
                   gap:`<span style="color:var(--rose)">Never logged &mdash; streak broken</span>`,
                   pending:`Not logged yet &mdash; still inside the ${BACKFILL_DAYS}-day window` }[r.st];
       return `<div class="drow out">
