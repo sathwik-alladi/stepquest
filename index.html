@@ -92,6 +92,7 @@ a{color:inherit;text-decoration:none}
 .dots i{width:8px;height:8px;border-radius:2px;background:var(--cyan);display:block}
 .dots i.miss{background:var(--rose)}
 .dots i.none{background:var(--line)}
+.dots i.sick{background:var(--violet)}
 
 /* quests */
 .quests{display:grid;grid-template-columns:repeat(auto-fill,minmax(232px,1fr));gap:10px}
@@ -250,6 +251,8 @@ const BONUS_CAP   = 10;     // max extra points per day (so 20/day ceiling)
 const BEAST_AT    = 20000;  // "Beast Mode" threshold
 const CENTURY     = 100000; // cumulative steps per Century bonus
 const GRACE_DAYS  = 3;      // no record bonuses for the first N days of the challenge
+const BACKFILL_DAYS= 3;    // how many days back the form accepts; days newer than this are "pending", not misses
+const SICK_MAX    = 4;     // most excused days one person may claim in the whole challenge
 const ON_DUPLICATE= "last"; // two entries for the same person + day: "last" wins, or "sum" them
 const STRIDE_M    = 0.75;
 const REFRESH_MS  = 5 * 60 * 1000;
@@ -289,82 +292,80 @@ function levelOf(p){ let L=LEVELS[0],i=0,idx=0;
   return {name:L.n,idx:idx+1,next,pct:next?Math.min(100,((p-L.at)/(next.at-L.at))*100):100};
 }
 
-const DEMO = `Date,Name,Steps
-2026-07-27,Aisha,7200
-2026-07-27,Rohan,5400
-2026-07-27,Meera,11800
-2026-07-27,Zaid,3200
-2026-07-27,Kabir,5100
-2026-07-28,Aisha,6100
-2026-07-28,Rohan,9050
-2026-07-28,Meera,14300
-2026-07-28,Zaid,5100
-2026-07-28,Kabir,5600
-2026-07-29,Aisha,8400
-2026-07-29,Rohan,5200
-2026-07-29,Meera,21050
-2026-07-29,Zaid,5900
-2026-07-29,Kabir,6200
-2026-07-30,Aisha,5600
-2026-07-30,Rohan,6900
-2026-07-30,Meera,9800
-2026-07-30,Zaid,6600
-2026-07-30,Kabir,4400
-2026-07-31,Aisha,12600
-2026-07-31,Rohan,7200
-2026-07-31,Meera,10400
-2026-07-31,Zaid,5300
-2026-07-31,Kabir,5900
-2026-08-01,Aisha,9200
-2026-08-01,Rohan,5100
-2026-08-01,Meera,13900
-2026-08-01,Zaid,7100
-2026-08-01,Kabir,6800
-2026-08-02,Aisha,7900
-2026-08-02,Rohan,8600
-2026-08-02,Meera,12200
-2026-08-02,Zaid,5400
-2026-08-02,Kabir,5200
-2026-08-03,Aisha,10300
-2026-08-03,Rohan,4200
-2026-08-03,Meera,15600
-2026-08-03,Zaid,6200
-2026-08-03,Kabir,7400
-2026-08-04,Aisha,6700
-2026-08-04,Rohan,7800
-2026-08-04,Meera,11100
-2026-08-04,Zaid,5800
-2026-08-04,Kabir,3900
-2026-08-05,Aisha,14200
-2026-08-05,Rohan,6300
-2026-08-05,Meera,9400
-2026-08-05,Zaid,7900
-2026-08-05,Kabir,6100
-2026-08-06,Aisha,8800
-2026-08-06,Rohan,5900
-2026-08-06,Meera,22400
-2026-08-06,Zaid,6400
-2026-08-06,Kabir,8200
-2026-08-07,Aisha,7400
-2026-08-07,Rohan,9200
-2026-08-07,Meera,10800
-2026-08-07,Zaid,5100
-2026-08-07,Kabir,5500
-2026-08-08,Aisha,11600
-2026-08-08,Rohan,6100
-2026-08-08,Meera,13200
-2026-08-08,Zaid,8300
-2026-08-08,Kabir,9100
-2026-08-09,Aisha,9900
-2026-08-09,Rohan,7700
-2026-08-09,Meera,11500
-2026-08-09,Zaid,6900
-2026-08-09,Kabir,7200
-2026-08-10,Aisha,13100
-2026-08-10,Rohan,10400
-2026-08-10,Meera,12900
-2026-08-10,Zaid,9600
-2026-08-10,Kabir,11300`;
+const DEMO = `Date,Name,Steps,Status
+2026-07-27,Aisha,7200,
+2026-07-27,Rohan,5400,
+2026-07-27,Meera,11800,
+2026-07-27,Zaid,3200,
+2026-07-27,Kabir,5100,
+2026-07-28,Aisha,6100,
+2026-07-28,Rohan,9050,
+2026-07-28,Meera,14300,
+2026-07-28,Zaid,5100,
+2026-07-28,Kabir,5600,
+2026-07-29,Aisha,8400,
+2026-07-29,Rohan,5200,
+2026-07-29,Meera,21050,
+2026-07-29,Zaid,5900,
+2026-07-29,Kabir,6200,
+2026-07-30,Aisha,5600,
+2026-07-30,Rohan,6900,
+2026-07-30,Meera,9800,
+2026-07-30,Zaid,6600,
+2026-07-30,Kabir,0,Sick day
+2026-07-31,Aisha,12600,
+2026-07-31,Rohan,7200,
+2026-07-31,Meera,10400,
+2026-07-31,Zaid,5300,
+2026-07-31,Kabir,5900,
+2026-08-01,Aisha,9200,
+2026-08-01,Rohan,5100,
+2026-08-01,Meera,13900,
+2026-08-01,Zaid,7100,
+2026-08-01,Kabir,6800,
+2026-08-02,Aisha,7900,
+2026-08-02,Rohan,8600,
+2026-08-02,Meera,12200,
+2026-08-02,Zaid,5400,
+2026-08-02,Kabir,5200,
+2026-08-03,Aisha,10300,
+2026-08-03,Rohan,4200,
+2026-08-03,Meera,15600,
+2026-08-03,Zaid,6200,
+2026-08-03,Kabir,7400,
+2026-08-04,Aisha,6700,
+2026-08-04,Rohan,7800,
+2026-08-04,Meera,11100,
+2026-08-04,Kabir,0,Sick day
+2026-08-05,Aisha,14200,
+2026-08-05,Rohan,6300,
+2026-08-05,Meera,9400,
+2026-08-05,Kabir,6100,
+2026-08-06,Aisha,8800,
+2026-08-06,Rohan,5900,
+2026-08-06,Meera,22400,
+2026-08-06,Zaid,6400,
+2026-08-06,Kabir,8200,
+2026-08-07,Aisha,7400,
+2026-08-07,Rohan,9200,
+2026-08-07,Meera,10800,
+2026-08-07,Zaid,5100,
+2026-08-07,Kabir,5500,
+2026-08-08,Aisha,11600,
+2026-08-08,Rohan,6100,
+2026-08-08,Meera,13200,
+2026-08-08,Zaid,8300,
+2026-08-08,Kabir,9100,
+2026-08-09,Aisha,9900,
+2026-08-09,Rohan,7700,
+2026-08-09,Meera,11500,
+2026-08-09,Zaid,6900,
+2026-08-09,Kabir,7200,
+2026-08-10,Aisha,13100,
+2026-08-10,Rohan,10400,
+2026-08-10,Meera,12900,
+2026-08-10,Zaid,9600,
+2026-08-10,Kabir,11300,`;
 
 /* ---------------- helpers ---------------- */
 const $ = id => document.getElementById(id);
@@ -396,12 +397,15 @@ function toRecords(text){
   const h=rows[0].map(x=>x.trim().toLowerCase());
   const di=h.findIndex(x=>x.startsWith("date")), ni=h.findIndex(x=>x.startsWith("name"));
   const si=h.findIndex(x=>x.startsWith("step")||x.startsWith("count"));
+  const fi=h.findIndex(x=>x.startsWith("status")||x.startsWith("flag")||x.startsWith("sick")||x.startsWith("rest")||x.startsWith("note"));
   const out=[];
   for(let i=1;i<rows.length;i++){
     const r=rows[i], date=(r[di]||"").trim(), name=(r[ni]||"").trim();
     const steps=parseInt(String(r[si]||"").replace(/[^0-9-]/g,""),10);
     if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-    out.push({date,name,steps:isNaN(steps)?0:Math.max(0,steps)});
+    const flag=fi>=0?String(r[fi]||"").trim().toLowerCase():"";
+    const sick=/sick|rest|excus|leave|injur|travel/.test(flag);
+    out.push({date,name,steps:isNaN(steps)?0:Math.max(0,steps),sick});
   }
   return out;
 }
@@ -413,14 +417,17 @@ function buildEngine(records){
   const names=[...new Set(records.map(r=>r.name))].sort();
   const grid={}; names.forEach(n=>grid[n]={});
   records.forEach(r=>{
-    grid[r.name][r.date] = ON_DUPLICATE==="sum"
-      ? (grid[r.name][r.date]||0)+r.steps   // add both entries together
-      : r.steps;                            // later row overwrites earlier: a correction
+    const prev=grid[r.name][r.date];
+    grid[r.name][r.date] = (ON_DUPLICATE==="sum" && prev!==undefined)
+      ? {steps:prev.steps+r.steps, sick:r.sick}   // add both entries together
+      : {steps:r.steps, sick:r.sick};             // later row overwrites earlier: a correction
   });
+  const stepsOn=(n,d)=>grid[n][d]?grid[n][d].steps:undefined;
 
   const P={};
   names.forEach(n=>P[n]={
     name:n, points:0, base:0, bonusPts:0, steps:0, logged:0, qualified:0, missed:0,
+    sickDays:0, sickRejected:0, pending:0,
     run:0, bestRun:0, pb:0, pbDate:null, cum:0, centuries:0,
     days:{}, events:[], badges:{}, firstDate:null
   });
@@ -436,59 +443,86 @@ function buildEngine(records){
     if(p.days[date]) p.days[date].bonuses.push(ev);
   };
 
-  dates.forEach((date,di)=>{
-    const active=names.filter(n=>grid[n][date]!==undefined);
-    const vals=active.map(n=>grid[n][date]);
-    const dayMax=vals.length?Math.max(...vals):0;
-    // roster = everyone who has entered the challenge by this date
-    const roster=names.filter(n=>P[n].firstDate!==null||grid[n][date]!==undefined);
-    const clearedToday=roster.filter(n=>(grid[n][date]||0)>=FLOOR);
-    const fullHouse=roster.length>1 && clearedToday.length===roster.length;
-    dayStat[date]={max:dayMax,active:active.length,cleared:clearedToday.length,roster:roster.length,fullHouse};
+  // full calendar: every day between the first and last entry, so unlogged days are visible
+  const calendar=[]; for(let d=dates[0]; d<=dates[dates.length-1]; d=addDays(d,1)) calendar.push(d);
+  const lastDate=dates[dates.length-1];
+  const settledTo=addDays(lastDate,-BACKFILL_DAYS);   // days after this may still be filled in
+  names.forEach(n=>{ const own=calendar.filter(d=>grid[n][d]!==undefined); P[n].firstDate=own.length?own[0]:null; });
 
-    active.forEach(n=>{
-      const p=P[n], v=grid[n][date];
-      if(p.firstDate===null) p.firstDate=date;
+  const status={}; names.forEach(n=>status[n]={});
+
+  calendar.forEach((date,di)=>{
+    const roster=names.filter(n=>P[n].firstDate!==null && date>=P[n].firstDate);
+    const active=roster.filter(n=>grid[n][date]!==undefined);
+    const walked=active.filter(n=>!grid[n][date].sick).map(n=>grid[n][date].steps);
+    const dayMax=walked.length?Math.max(...walked):0;
+
+    // people excused today do not count against the group total
+    const excusedToday=active.filter(n=>grid[n][date].sick && P[n].sickDays<SICK_MAX).length;
+    const expected=roster.length-excusedToday;
+    const clearedToday=roster.filter(n=>(stepsOn(n,date)||0)>=FLOOR);
+    const fullHouse=expected>1 && clearedToday.length===expected;
+    dayStat[date]={max:dayMax,active:active.length,cleared:clearedToday.length,
+                   roster:roster.length,expected,excused:excusedToday,fullHouse,
+                   settled:date<=settledTo};
+
+    roster.forEach(n=>{
+      const p=P[n], cell=grid[n][date];
+
+      // ---- nothing logged for this day ----
+      if(cell===undefined){
+        if(date<=settledTo){ status[n][date]="gap"; p.run=0; p.missed++; }   // settled: a real miss
+        else { status[n][date]="pending"; p.pending++; }                      // still inside the backfill window
+        return;
+      }
+
+      // ---- excused day ----
+      if(cell.sick){
+        if(p.sickDays<SICK_MAX){
+          p.sickDays++; status[n][date]="sick";
+          p.days[date]={steps:cell.steps,base:0,bonuses:[],sick:true};
+          return;                                    // streak survives untouched, no points
+        }
+        p.sickRejected++;                            // over the cap: treat as an ordinary miss
+        status[n][date]="over-cap"; p.run=0; p.missed++;
+        p.days[date]={steps:cell.steps,base:0,bonuses:[],sick:true,overCap:true};
+        return;
+      }
+
+      const v=cell.steps;
       const base=dayPoints(v);
       p.days[date]={steps:v,base,bonuses:[]};
       p.logged++; p.steps+=v; p.cum+=v; p.points+=base; p.base+=base;
 
       if(base>0){
+        status[n][date]="ok";
         p.qualified++;
         const wasBroken = p.run===0 && p.logged>1;
         p.run++; p.bestRun=Math.max(p.bestRun,p.run);
 
-        // streak tiers
         STREAK_TIERS.forEach(t=>{ if(p.run===t.len) award(p,date,t.key,t.pts,`${t.len}-day streak`); });
         if(p.run>30 && (p.run-30)%RELENTLESS_EVERY===0) award(p,date,"relentless",RELENTLESS_PTS,`${p.run}-day streak`);
 
-        // comeback: qualified today, missed the previous logged day
         if(wasBroken) award(p,date,"comeback",3,"back the very next day");
 
-        // weekend warrior (awarded on Sunday if Saturday also cleared)
         if(dow(date)===0){ const sat=addDays(date,-1);
-          if((grid[n][sat]||0)>=FLOOR) award(p,date,"weekend",5,"Sat + Sun cleared"); }
+          if((stepsOn(n,sat)||0)>=FLOOR) award(p,date,"weekend",5,"Sat + Sun cleared"); }
 
-        // beast mode
         if(v>=BEAST_AT) award(p,date,"beast",10,`${nf(v)} in one day`);
 
-        // day win
-        if(v===dayMax && active.length>1) award(p,date,"daywin",3,"top of the group today");
+        if(v===dayMax && walked.length>1) award(p,date,"daywin",3,"top of the group today");
 
-        // records (after the grace window)
         if(di>=GRACE_DAYS){
           if(p.pb>0 && v>p.pb) award(p,date,"pb",5,`beat ${nf(p.pb)}`);
           if(record.steps>0 && v>record.steps && record.holder!==n)
             award(p,date,"crown",15,`took the crown off ${record.holder}`);
         }
 
-        // century club
         while(p.cum >= (p.centuries+1)*CENTURY){ p.centuries++; award(p,date,"century",20,`${nf(p.centuries*CENTURY)} total steps`); }
 
-        // full house (team)
         if(fullHouse) award(p,date,"fullhouse",5,"everyone cleared today");
       } else {
-        p.run=0; p.missed++;
+        status[n][date]="under"; p.run=0; p.missed++;
       }
 
       if(v>p.pb){ p.pb=v; p.pbDate=date; }
@@ -499,7 +533,7 @@ function buildEngine(records){
   // most improved, week on week
   const weeks=[...new Set(dates.map(weekKey))].sort();
   const wt={}; names.forEach(n=>wt[n]={});
-  dates.forEach(d=>{ const w=weekKey(d); names.forEach(n=>{ if(grid[n][d]!==undefined) wt[n][w]=(wt[n][w]||0)+grid[n][d]; }); });
+  dates.forEach(d=>{ const w=weekKey(d); names.forEach(n=>{ const v=stepsOn(n,d); if(v!==undefined) wt[n][w]=(wt[n][w]||0)+v; }); });
   for(let i=1;i<weeks.length;i++){
     const w=weeks[i], prev=weeks[i-1];
     let winner=null, bestGain=0;
@@ -520,11 +554,12 @@ function buildEngine(records){
       avg: p.logged?Math.round(p.steps/p.logged):0,
       current: p.run,
       questCount: Object.keys(p.badges).length,
+      sickDays: p.sickDays,
       badgeTotal: Object.values(p.badges).reduce((a,b)=>a+b,0)
     };
   }).sort((a,b)=>b.points-a.points||b.steps-a.steps||a.name.localeCompare(b.name));
 
-  return {board,dates,names,grid,record,dayStat,timeline,P};
+  return {board,dates:calendar,names,grid,record,dayStat,timeline,P,status,stepsOn,settledTo};
 }
 
 /* ---------------- views ---------------- */
@@ -532,9 +567,11 @@ let E=null;
 
 function streakDots(name,dates){
   return `<span class="dots">`+dates.slice(-7).map(d=>{
-    const v=E.grid[name][d];
-    if(v===undefined) return `<i class="none"></i>`;
-    return `<i class="${v>=FLOOR?"":"miss"}"></i>`;
+    const st=E.status[name][d];
+    const cls={ok:"",under:"miss",gap:"miss","over-cap":"miss",sick:"sick",pending:"none"}[st];
+    const lbl={ok:"cleared",under:"below floor",gap:"not logged",
+               "over-cap":"over the sick-day cap",sick:"sick day",pending:"not logged yet"}[st]||"not started";
+    return `<i class="${cls===undefined?"none":cls}" title="${pretty(d)}: ${lbl}"></i>`;
   }).join("")+`</span>`;
 }
 
@@ -578,6 +615,7 @@ function viewHome(){
           <span>Floor <b>${e.qualified}</b>/${e.logged}</span>
           <span>Streak <b>${e.current}</b></span>
           <span>Quests <b>${e.badgeTotal}</b></span>
+          ${e.sickDays?`<span style="color:var(--violet)">Sick <b>${e.sickDays}</b></span>`:""}
           <span>Steps <b>${nf(e.steps)}</b></span>
           <span><b>${km(e.steps)}</b> km</span>
           <span>${streakDots(e.name,dates)}</span>
@@ -621,6 +659,7 @@ function viewQuests(){
   return `<div class="hd">How scoring works</div>
     <div class="panel" style="padding:16px 18px">
       <p style="margin:0 0 8px">Clear <b style="color:var(--cyan)">5,000 steps</b> and the day scores <b class="pts">10 points</b>. Every extra 1,000 adds <b class="pts">1 point</b>, capped at <b class="pts">+10</b> &mdash; so a day is worth at most <b class="pts">20</b> base points, and one huge Sunday cannot run away with the challenge.</p>
+      <p style="margin:0 0 8px;color:var(--muted)">A day you never log counts as a miss and breaks your streak, exactly like walking under the floor &mdash; but only once it is more than ${BACKFILL_DAYS} days old, since you can still backfill inside that window. Marking a day as <b style="color:var(--violet)">sick</b> on the form excuses it: no points, but your streak survives. You get ${SICK_MAX} of those for the whole challenge.</p>
       <p style="margin:0;color:var(--muted)">Below 5,000 scores nothing and resets your streak. Everything beyond that comes from quests, and quests stack &mdash; a single day can pay a streak tier, a personal best, a day win and a full house all at once.</p>
     </div>${blocks}`;
 }
@@ -632,7 +671,7 @@ function viewRecords(){
     <p>Best single days, longest streaks and category leaders all appear here once people start logging.</p>
     ${FORM_URL?`<a class="logbtn" href="${FORM_URL}" target="_blank" rel="noopener">+ Log your steps</a>`:""}</div>`;
   const bestDays=[];
-  E.names.forEach(n=>Object.entries(E.grid[n]).forEach(([d,v])=>bestDays.push({n,d,v})));
+  E.names.forEach(n=>Object.entries(E.grid[n]).forEach(([d,c])=>{ if(!c.sick) bestDays.push({n,d,v:c.steps}); }));
   bestDays.sort((a,b)=>b.v-a.v);
   const top=bestDays.slice(0,10).map((r,i)=>`<tr>
     <td class="num" style="color:var(--muted);width:34px">${i+1}</td>
@@ -658,7 +697,7 @@ function viewRecords(){
   const dayRows=[...E.dates].reverse().slice(0,14).map(d=>{
     const s=E.dayStat[d];
     return `<tr><td class="mono">${pretty(d)}</td>
-      <td class="num">${s.cleared}/${s.roster}</td>
+      <td class="num">${s.cleared}/${s.expected}${s.excused?` <span style="color:var(--violet)">+${s.excused} sick</span>`:""}</td>
       <td class="num">${nf(s.max)}</td>
       <td>${s.fullHouse?`<span class="tag">Full house</span>`:`<span style="color:var(--muted)">&mdash;</span>`}</td></tr>`;
   }).join("");
@@ -680,7 +719,7 @@ function viewPlayer(name){
   if(!e) return `<a class="back" href="#/">&larr; Leaderboard</a><div class="notice">No player called ${esc(name)}.</div>`;
   const rank=E.board.indexOf(e)+1;
   const L=levelOf(e.points);
-  const mine=E.dates.filter(d=>e.days[d]);
+  const mine=E.dates.filter(d=>e.days[d]&&!e.days[d].sick);
   const last=mine.slice(-30);
   const max=Math.max(FLOOR*1.2,...last.map(d=>e.days[d].steps));
 
@@ -694,7 +733,8 @@ function viewPlayer(name){
     ["Rank",`#${rank}`,"",`of ${E.board.length}`],
     ["Points",nf(e.points),"",`${nf(e.base)} base + ${nf(e.bonusPts)} quests`],
     ["Current streak",e.current,"D",`best ${e.bestRun}`],
-    ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} days`],
+    ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} walked days`],
+    ["Sick days used",`${e.sickDays}/${SICK_MAX}`,"",e.sickDays?"streak protected":"none claimed"],
     ["Personal best",nf(e.pb),"",e.pbDate?pretty(e.pbDate):"—"],
     ["Total steps",nf(e.steps),"",`${nf(e.avg)} avg on logged days`],
     ["Distance",km(e.steps),"KM",`out of ${nf(km(E.board.reduce((s,x)=>s+x.steps,0)))} km group total`]
@@ -710,7 +750,16 @@ function viewPlayer(name){
     </div>`;
   }).join("");
 
-  const log=[...mine].reverse().slice(0,30).map(d=>{
+  const logDates=E.dates.filter(d=>E.status[e.name][d]&&E.status[e.name][d]!=="pending");
+  const log=[...logDates].reverse().slice(0,30).map(d=>{
+    const st=E.status[e.name][d];
+    if(st==="gap") return `<tr><td class="mono" style="color:var(--muted)">${pretty(d)}</td>
+      <td class="num miss-t">not logged</td><td class="num">0</td>
+      <td><span style="color:var(--rose)">streak broken</span></td><td class="num">0</td></tr>`;
+    if(st==="sick") return `<tr><td class="mono" style="color:var(--muted)">${pretty(d)}</td>
+      <td class="num" style="color:var(--violet)">sick day</td><td class="num">0</td>
+      <td><span class="tag" style="background:rgba(167,139,250,.15);color:var(--violet);border-color:rgba(167,139,250,.35)">Excused &middot; streak kept</span></td>
+      <td class="num">0</td></tr>`;
     const x=e.days[d], bp=x.bonuses.reduce((s,b)=>s+b.pts,0);
     return `<tr>
       <td class="mono" style="color:var(--muted)">${pretty(d)}</td>
@@ -727,9 +776,13 @@ function viewPlayer(name){
     const col=[];
     for(let dd=0;dd<7;dd++){
       const d=addDays(cur,dd);
-      const v=e.days[d]?e.days[d].steps:null;
+      const cell=e.days[d]; const stt=E.status[e.name]?E.status[e.name][d]:undefined;
       let bg="var(--line)", t=pretty(d)+": no entry";
-      if(v!==null){
+      if(stt==="sick"){ bg="rgba(167,139,250,.6)"; t=pretty(d)+": sick day"; }
+      else if(stt==="pending"){ bg="var(--line)"; t=pretty(d)+": not logged yet"; }
+      else if(stt==="gap"){ bg="rgba(255,92,122,.28)"; t=pretty(d)+": not logged"; }
+      else if(cell){
+        const v=cell.steps;
         if(v<FLOOR){ bg="rgba(255,92,122,.65)"; }
         else { const k=Math.min(1,(v-FLOOR)/15000); bg=`rgba(69,224,200,${(0.3+k*0.7).toFixed(2)})`; }
         t=pretty(d)+": "+nf(v);
@@ -822,22 +875,31 @@ function viewDaily(dateArg){
   const st=E.dayStat[date];
 
   const rows=E.names.map(n=>{
-    const p=E.P[n], day=p.days[date];
-    if(!day) return {n,logged:false,steps:0,base:0,bonus:0,total:0,tags:""};
+    const p=E.P[n], day=p.days[date], st=E.status[n][date];
+    if(!st) return {n,st:"none",logged:false,steps:0,base:0,bonus:0,total:0,tags:""};
+    if(st==="sick") return {n,st,logged:false,steps:0,base:0,bonus:0,total:0,tags:""};
+    if(st==="gap"||st==="pending") return {n,st,logged:false,steps:0,base:0,bonus:0,total:0,tags:""};
     const bonus=day.bonuses.reduce((a,b)=>a+b.pts,0);
-    return {n,logged:true,steps:day.steps,base:day.base,bonus,total:day.base+bonus,
+    return {n,st,logged:true,steps:day.steps,base:day.base,bonus,total:day.base+bonus,
       tags:day.bonuses.map(b=>`<span class="tag" title="${esc(b.note)}">${QUESTS[b.key].name} +${b.pts}</span>`).join("")};
-  }).sort((a,b)=>Number(b.logged)-Number(a.logged)||b.total-a.total||b.steps-a.steps);
+  }).filter(r=>r.st!=="none")
+    .sort((a,b)=>Number(b.logged)-Number(a.logged)||b.total-a.total||b.steps-a.steps);
 
   const dayPts=rows.reduce((a,r)=>a+r.total,0);
   const dayStepsTot=rows.reduce((a,r)=>a+r.steps,0);
 
   const list=rows.map((r,idx)=>{
-    if(!r.logged) return `<div class="drow out">
+    if(!r.logged){
+      const msg={ sick:`<span style="color:var(--violet)">Sick day &mdash; excused, streak kept</span>`,
+                  gap:`<span style="color:var(--rose)">Never logged &mdash; streak broken</span>`,
+                  pending:`Not logged yet &mdash; still inside the ${BACKFILL_DAYS}-day window` }[r.st];
+      return `<div class="drow out">
       <div class="rank">&ndash;</div>
-      <div><div class="pname" style="font-size:17px"><a href="#/p/${encodeURIComponent(r.n)}">${esc(r.n)}</a></div>
-      <div class="dsteps">Nothing logged for this day</div></div>
+      <div><div class="pname" style="font-size:17px"><a href="#/p/${encodeURIComponent(r.n)}">${esc(r.n)}</a>
+        ${r.st==="sick"?`<span class="lvl" style="color:var(--violet);border-color:rgba(167,139,250,.4)">Sick</span>`:""}</div>
+      <div class="dsteps">${msg}</div></div>
       <div class="dtot"><div class="n" style="color:var(--muted)">0</div><div class="l">PTS</div></div></div>`;
+    }
     const p=E.P[r.n];
     const avg=p.logged?Math.round(p.steps/p.logged):0;
     const diff=avg?Math.round((r.steps-avg)/avg*100):0;
@@ -859,7 +921,7 @@ function viewDaily(dateArg){
     `<option value="${d}" ${d===date?"selected":""}>${new Date(d+"T00:00:00").toLocaleDateString("en-IN",{weekday:"short",day:"numeric",month:"short"})}</option>`).join("");
 
   const stats=[
-    ["Cleared the floor",`${st.cleared}/${st.roster}`,"",""],
+    ["Cleared the floor",`${st.cleared}/${st.expected}`,"",st.excused?`${st.excused} excused sick`:""],
     ["Points awarded",nf(dayPts),"",""],
     ["Steps that day",nf(dayStepsTot),"",`${km(dayStepsTot)} km`],
     ["Top steps",nf(st.max),"",""]
