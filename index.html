@@ -515,7 +515,10 @@ function buildEngine(records){
 
         if(v>=BEAST_AT) award(p,date,"beast",10,`${nf(v)} in one day`);
 
-        if(v===dayMax && walked.length>1) award(p,date,"daywin",3,"top of the group today");
+        // awarded live to whoever is top right now. The whole board is rebuilt from the sheet on
+        // every load, so if a backfill later beats this number the win simply moves to them.
+        if(v===dayMax && walked.length>1) award(p,date,"daywin",3,
+          date<=settledTo?"top of the group":"top so far, provisional until the backfill window closes");
 
         if(di>=GRACE_DAYS){
           if(p.pb>0 && v>p.pb) award(p,date,"pb",5,`beat ${nf(p.pb)}`);
@@ -536,18 +539,23 @@ function buildEngine(records){
   });
 
   // most improved, week on week
-  const weeks=[...new Set(dates.map(weekKey))].sort();
+  const weeks=[...new Set(calendar.map(weekKey))].sort();
   const wt={}; names.forEach(n=>wt[n]={});
-  dates.forEach(d=>{ const w=weekKey(d); names.forEach(n=>{ const v=stepsOn(n,d); if(v!==undefined) wt[n][w]=(wt[n][w]||0)+v; }); });
+  calendar.forEach(d=>{ const w=weekKey(d); names.forEach(n=>{ const v=stepsOn(n,d); if(v!==undefined) wt[n][w]=(wt[n][w]||0)+v; }); });
   for(let i=1;i<weeks.length;i++){
     const w=weeks[i], prev=weeks[i-1];
+    // only judge a week once all seven of its days have actually happened.
+    // comparing a part-finished week against a full one produces nonsense percentages.
+    if(addDays(w,6) > lastDate) continue;
     let winner=null, bestGain=0;
     names.forEach(n=>{
       const a=wt[n][prev]||0, b=wt[n][w]||0;
       if(a>0 && b>a){ const gain=(b-a)/a; if(gain>bestGain){ bestGain=gain; winner=n; } }
     });
     if(winner){
-      const last=[...dates].filter(d=>weekKey(d)===w).pop();
+      // award it on the winner's own last logged day of that week, never on a day they sat out
+      const own=calendar.filter(d=>weekKey(d)===w && grid[winner][d]!==undefined);
+      const last=own.length?own[own.length-1]:calendar.filter(d=>weekKey(d)===w).pop();
       award(P[winner],last,"improved",10,`+${Math.round(bestGain*100)}% on the week`);
     }
   }
@@ -740,6 +748,7 @@ function viewPlayer(name){
     ["Current streak",e.current,"D",`best ${e.bestRun}`],
     ["Floor rate",e.rate,"%",`${e.qualified} of ${e.logged} counted days`],
     ["Sick days used",`${e.sickDays}/${SICK_MAX}`,"",e.sickDays?"streak protected":"none claimed"],
+    ["Missed days",e.missed,"",e.pending?`${e.pending} still open to backfill`:"days never logged"],
     ["Personal best",nf(e.pb),"",e.pbDate?pretty(e.pbDate):"—"],
     ["Total steps",nf(e.steps),"",`${nf(e.avg)} avg on logged days`],
     ["Distance",km(e.steps),"KM",`out of ${nf(km(E.board.reduce((s,x)=>s+x.steps,0)))} km group total`]
@@ -755,9 +764,13 @@ function viewPlayer(name){
     </div>`;
   }).join("");
 
-  const logDates=E.dates.filter(d=>E.status[e.name][d]&&E.status[e.name][d]!=="pending");
+  const logDates=E.dates.filter(d=>E.status[e.name][d]);
   const log=[...logDates].reverse().slice(0,30).map(d=>{
     const st=E.status[e.name][d];
+    if(st==="pending") return `<tr><td class="mono" style="color:var(--muted)">${pretty(d)}</td>
+      <td class="num" style="color:var(--muted)">awaiting entry</td><td class="num" style="color:var(--muted)">&mdash;</td>
+      <td><span style="color:var(--muted)">Still open &mdash; can be logged for ${Math.max(0,BACKFILL_DAYS-Math.round((new Date(E.dates[E.dates.length-1]+"T00:00:00Z")-new Date(d+"T00:00:00Z"))/86400000))} more day(s)</span></td>
+      <td class="num" style="color:var(--muted)">&mdash;</td></tr>`;
     if(st==="gap") return `<tr><td class="mono" style="color:var(--muted)">${pretty(d)}</td>
       <td class="num miss-t">not logged</td><td class="num">0</td>
       <td><span style="color:var(--rose)">streak broken</span></td><td class="num">0</td></tr>`;
@@ -914,7 +927,9 @@ function viewDaily(dateArg){
       <div class="rank">${idx+1}</div>
       <div>
         <div class="pname" style="font-size:17px"><a href="#/p/${encodeURIComponent(r.n)}">${esc(r.n)}</a>
-          ${r.steps===st.max?`<span class="lvl">Day win</span>`:""}
+          ${r.tags && r.tags.indexOf("Day Win")>=0
+             ? `<span class="lvl"${st.settled?"":' style="border-style:dashed" title="Provisional \u2014 a later backfill can still take this"'}>Day win${st.settled?"":" \u00b7 provisional"}</span>`
+             : ""}
           ${r.steps<FLOOR?`<span class="lvl" style="color:var(--rose);border-color:rgba(255,92,122,.4)">Below floor</span>`:""}</div>
         <div class="dsteps"><b>${nf(r.steps)}</b> steps &middot; ${km(r.steps)} km &middot;
           <b>${r.base}</b> base${r.bonus?` + <b>${r.bonus}</b> from quests`:""} &nbsp; ${cmp}</div>
